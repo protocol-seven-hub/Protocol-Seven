@@ -1,0 +1,2543 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Ascension Engine - Cedric</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { 
+            font-family: 'Courier New', monospace; 
+            background: linear-gradient(135deg, #0a0a0a 0%, #1a1a1a 100%); 
+            color: #00ff41; 
+            overflow-x: hidden;
+            -webkit-tap-highlight-color: transparent;
+        }
+        
+        .scan-line {
+            position: fixed; top: 0; left: 0; width: 100%; height: 2px;
+            background: #00ff41; opacity: 0.1;
+            animation: scan 3s linear infinite; pointer-events: none; z-index: 9999;
+        }
+        @keyframes scan { 0% { transform: translateY(0); } 100% { transform: translateY(100vh); } }
+        
+        .character-badge {
+            position: fixed; bottom: 20px; right: 20px; width: 60px; height: 60px;
+            border: 2px solid #00ff41; background: rgba(0, 0, 0, 0.9);
+            border-radius: 50%; display: flex; align-items: center; justify-content: center;
+            font-size: 30px; z-index: 1000; cursor: pointer;
+            box-shadow: 0 0 20px rgba(0, 255, 65, 0.3); transition: all 0.3s;
+        }
+        .character-badge:active { transform: scale(0.95); box-shadow: 0 0 30px rgba(0, 255, 65, 0.5); }
+        
+        .header {
+            position: sticky; top: 0; background: rgba(0, 0, 0, 0.95);
+            backdrop-filter: blur(10px); border-bottom: 2px solid #00ff41;
+            padding: 1rem; z-index: 100; box-shadow: 0 0 20px rgba(0, 255, 65, 0.3);
+        }
+        .header-title {
+            font-size: 1.5rem; font-weight: bold; text-align: center; color: #00ff41;
+            text-shadow: 0 0 10px #00ff41; margin-bottom: 0.5rem; letter-spacing: 0.1em;
+        }
+        .player-name { text-align: center; font-size: 0.875rem; opacity: 0.7; margin-bottom: 0.5rem; }
+        .deadline-warning {
+            text-align: center; font-size: 0.875rem; color: #ff3333;
+            margin-bottom: 0.5rem; animation: pulse 2s infinite;
+        }
+        @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.6; } }
+        
+        .level-badge {
+            display: inline-block; padding: 0.5rem 1rem;
+            background: rgba(0, 255, 65, 0.2); border: 2px solid #00ff41;
+            font-size: 1.2rem; font-weight: bold; box-shadow: 0 0 10px rgba(0, 255, 65, 0.3);
+        }
+        .xp-needed { font-size: 0.75rem; opacity: 0.8; margin-top: 0.25rem; text-align: center; }
+        
+        .xp-bar {
+            background: #0a0a0a; border: 1px solid #00ff41; height: 25px;
+            position: relative; overflow: hidden; margin: 0.5rem 0;
+        }
+        .xp-bar-big { height: 35px; }
+        .xp-fill {
+            height: 100%; background: linear-gradient(90deg, #00ff41 0%, #00cc33 100%);
+            transition: width 0.5s ease; box-shadow: 0 0 10px rgba(0, 255, 65, 0.5);
+        }
+        .xp-text {
+            position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%);
+            font-size: 0.75rem; color: #fff; text-shadow: 0 0 5px #000;
+            font-weight: bold; z-index: 10;
+        }
+        
+        .nav-tabs {
+            display: grid; grid-template-columns: repeat(5, 1fr);
+            border-top: 2px solid #00ff41; position: sticky; top: 0;
+            background: #000; z-index: 99;
+        }
+        .nav-tab {
+            padding: 0.75rem 0.5rem; text-align: center; border-right: 1px solid #333;
+            cursor: pointer; font-size: 0.75rem; transition: all 0.3s;
+            background: rgba(0, 0, 0, 0.9);
+        }
+        .nav-tab:last-child { border-right: none; }
+        .nav-tab.active { background: #00ff41; color: #000; font-weight: bold; }
+        .nav-tab:active { transform: scale(0.95); }
+        
+        .view { display: none; padding: 1rem; padding-bottom: 5rem; }
+        .view.active { display: block; }
+        
+        .panel {
+            background: rgba(0, 0, 0, 0.9); border: 2px solid #00ff41;
+            padding: 1rem; margin-bottom: 1rem; box-shadow: 0 0 20px rgba(0, 255, 65, 0.2);
+        }
+        .panel.dev-note { border-color: #ffcc00; background: rgba(255, 204, 0, 0.05); }
+        
+        .habit {
+            background: rgba(0, 0, 0, 0.6); border-left: 3px solid #333;
+            padding: 1rem; margin: 0.5rem 0; display: flex;
+            justify-content: space-between; align-items: center;
+            cursor: pointer; transition: all 0.3s;
+        }
+        .habit:active { background: rgba(0, 255, 65, 0.1); transform: scale(0.98); }
+        .habit.completed { border-left-color: #00ff41; background: rgba(0, 255, 65, 0.1); opacity: 0.7; }
+        
+        .checkbox {
+            width: 24px; height: 24px; border: 2px solid #00ff41;
+            display: flex; align-items: center; justify-content: center;
+            flex-shrink: 0; margin-right: 1rem; font-size: 1rem;
+        }
+        .habit-content { flex: 1; font-size: 0.9rem; }
+        .xp-badge {
+            padding: 0.25rem 0.5rem; border: 1px solid #00ff41;
+            font-size: 0.875rem; white-space: nowrap; margin-left: 0.5rem;
+        }
+        
+        .input, textarea {
+            width: 100%; padding: 0.75rem; background: #0a0a0a;
+            border: 1px solid #00ff41; color: #00ff41;
+            font-family: 'Courier New', monospace; font-size: 1rem; margin: 0.5rem 0;
+        }
+        textarea { min-height: 150px; resize: vertical; }
+        
+        .btn {
+            width: 100%; padding: 0.75rem 1.5rem;
+            background: rgba(0, 255, 65, 0.1); border: 1px solid #00ff41;
+            color: #00ff41; cursor: pointer;
+            font-family: 'Courier New', monospace; font-size: 0.875rem;
+            margin: 0.5rem 0; transition: all 0.3s;
+        }
+        .btn:active { background: rgba(0, 255, 65, 0.3); transform: scale(0.98); }
+        .btn.primary { background: #00ff41; color: #000; font-weight: bold; }
+        .btn.danger { background: #ff3333; border-color: #ff3333; color: #fff; }
+        
+        .stat {
+            display: flex; justify-content: space-between;
+            padding: 0.75rem; border-bottom: 1px solid #333;
+        }
+        .stat:last-child { border-bottom: none; }
+        
+        .section-title {
+            font-weight: bold; font-size: 1.1rem;
+            margin: 1.5rem 0 1rem 0; padding-bottom: 0.5rem;
+            border-bottom: 1px solid #00ff41;
+        }
+        
+        .difficulty-selector {
+            display: grid; grid-template-columns: 1fr 1fr 1fr;
+            gap: 0.5rem; margin: 1rem 0;
+        }
+        .difficulty-btn {
+            padding: 1rem; border: 2px solid #333; text-align: center;
+            cursor: pointer; background: rgba(0, 0, 0, 0.6); transition: all 0.3s;
+        }
+        .difficulty-btn.active {
+            border-color: #00ff41; background: rgba(0, 255, 65, 0.1);
+            box-shadow: 0 0 15px rgba(0, 255, 65, 0.3);
+        }
+        
+        .character-grid {
+            display: grid; grid-template-columns: repeat(4, 1fr);
+            gap: 0.5rem; margin: 1rem 0;
+        }
+        .character-option {
+            padding: 1rem; border: 2px solid #333; text-align: center;
+            cursor: pointer; font-size: 30px;
+            background: rgba(0, 0, 0, 0.6); transition: all 0.3s;
+        }
+        .character-option.active {
+            border-color: #00ff41; background: rgba(0, 255, 65, 0.1);
+            box-shadow: 0 0 15px rgba(0, 255, 65, 0.3);
+        }
+        
+        .boss-battle {
+            background: linear-gradient(135deg, rgba(255, 0, 0, 0.1) 0%, rgba(0, 0, 0, 0.8) 100%);
+            border: 2px solid #ff3333; padding: 1rem; margin: 0.5rem 0;
+        }
+        .boss-battle.defeated {
+            border-color: #00ff41;
+            background: linear-gradient(135deg, rgba(0, 255, 65, 0.1) 0%, rgba(0, 0, 0, 0.8) 100%);
+        }
+        
+        .overlay {
+            display: none; position: fixed; top: 0; left: 0;
+            width: 100%; height: 100%; background: rgba(0, 0, 0, 0.95); z-index: 1999;
+        }
+        .overlay.active { display: block; }
+        
+        .modal {
+            display: none; position: fixed; top: 50%; left: 50%;
+            transform: translate(-50%, -50%); background: #000;
+            border: 3px solid #00ff41; padding: 1.5rem; z-index: 2000;
+            max-width: 90%; max-height: 90%; overflow-y: auto;
+            box-shadow: 0 0 40px rgba(0, 255, 65, 0.5);
+        }
+        .modal.active { display: block; }
+        
+        .xp-guide {
+            background: rgba(0, 255, 65, 0.05); padding: 1rem;
+            margin: 1rem 0; border-left: 3px solid #00ff41;
+        }
+        .xp-example {
+            font-size: 0.875rem; opacity: 0.7;
+            margin: 0.5rem 0; padding-left: 1rem;
+        }
+        
+        .milestone {
+            position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%);
+            background: rgba(0, 0, 0, 0.98); border: 3px solid #00ff41;
+            padding: 2rem; z-index: 10000; text-align: center;
+            animation: appear 0.3s; max-width: 90%;
+            box-shadow: 0 0 50px rgba(0, 255, 65, 0.8);
+        }
+        @keyframes appear {
+            from { opacity: 0; transform: translate(-50%, -50%) scale(0.8); }
+            to { opacity: 1; transform: translate(-50%, -50%) scale(1); }
+        }
+
+        /* ── SPLASH SCREEN ── */
+        #splashScreen {
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            background: #000; z-index: 99999;
+            display: flex; flex-direction: column; align-items: center; justify-content: center;
+            padding: 2rem; text-align: center;
+            transition: opacity 0.6s ease;
+        }
+        #splashScreen.fade-out { opacity: 0; pointer-events: none; }
+        .splash-scan {
+            position: absolute; top: 0; left: 0; width: 100%; height: 2px;
+            background: #00ff41; opacity: 0.15;
+            animation: scan 3s linear infinite;
+        }
+        .splash-title {
+            font-size: clamp(1.6rem, 6vw, 2.8rem);
+            font-weight: bold; color: #00ff41;
+            text-shadow: 0 0 20px #00ff41, 0 0 40px #00ff41;
+            letter-spacing: 0.08em; line-height: 1.2;
+            margin-bottom: 1rem; animation: glowPulse 2.5s ease-in-out infinite;
+        }
+        @keyframes glowPulse {
+            0%, 100% { text-shadow: 0 0 20px #00ff41, 0 0 40px #00ff41; }
+            50% { text-shadow: 0 0 30px #00ff41, 0 0 60px #00ff41, 0 0 80px #00ff41; }
+        }
+        .splash-tagline {
+            font-size: clamp(0.85rem, 3vw, 1.1rem);
+            color: #00cc33; opacity: 0.85; letter-spacing: 0.05em;
+            margin-bottom: 3.5rem; font-style: italic;
+        }
+        .splash-btn {
+            width: 100%; max-width: 320px;
+            padding: 1rem 2rem; margin: 0.5rem 0;
+            font-family: 'Courier New', monospace;
+            font-size: 1rem; font-weight: bold;
+            cursor: pointer; letter-spacing: 0.05em;
+            transition: all 0.3s; border: 2px solid #00ff41;
+        }
+        .splash-btn.new-game {
+            background: #00ff41; color: #000;
+            box-shadow: 0 0 20px rgba(0,255,65,0.4);
+        }
+        .splash-btn.new-game:active { transform: scale(0.97); }
+        .splash-btn.continue-game {
+            background: transparent; color: #00ff41;
+        }
+        .splash-btn.continue-game:disabled {
+            opacity: 0.3; cursor: not-allowed; border-color: #333; color: #555;
+        }
+        .splash-btn.continue-game:not(:disabled):active { background: rgba(0,255,65,0.1); transform: scale(0.97); }
+        .splash-credits-btn {
+            margin-top: 2rem; padding: 0.5rem 1.5rem;
+            background: transparent; border: 1px solid #555;
+            color: #888; font-family: 'Courier New', monospace;
+            font-size: 0.75rem; cursor: pointer; letter-spacing: 0.05em;
+            transition: all 0.3s;
+        }
+        .splash-credits-btn:active { border-color: #00ff41; color: #00ff41; }
+        .splash-save-label {
+            font-size: 0.75rem; opacity: 0.5; margin-top: 1.5rem;
+            letter-spacing: 0.05em;
+        }
+        .credits-modal {
+            display: none; position: fixed; top: 0; left: 0;
+            width: 100%; height: 100%; background: rgba(0,0,0,0.97);
+            z-index: 100000; overflow-y: auto; padding: 2rem 1rem;
+        }
+        .credits-modal.active { display: block; }
+        .credits-content {
+            max-width: 680px; margin: 0 auto;
+            background: rgba(0,0,0,0.9); border: 2px solid #00ff41;
+            padding: 2rem; box-shadow: 0 0 40px rgba(0,255,65,0.3);
+        }
+        .credits-title {
+            font-size: 1.4rem; font-weight: bold; color: #00ff41;
+            text-align: center; margin-bottom: 1.5rem; letter-spacing: 0.08em;
+            text-shadow: 0 0 10px #00ff41;
+        }
+        .credits-text {
+            font-size: 0.95rem; line-height: 1.9; color: #00cc33;
+            margin-bottom: 1.5rem;
+        }
+        .credits-text p { margin-bottom: 1.3rem; }
+        .credits-text strong { color: #00ff41; }
+        .credits-signature {
+            text-align: right; font-style: italic; opacity: 0.8;
+            margin-top: 2rem; padding-top: 1.5rem; border-top: 1px solid #333;
+        }
+        
+        /* ── MIRROR PROTOCOL MODAL ── */
+        .mirror-modal {
+            display: none; position: fixed; top: 0; left: 0;
+            width: 100%; height: 100%; background: rgba(0,0,0,0.98);
+            z-index: 100001; overflow-y: auto; padding: 1.5rem 1rem;
+        }
+        .mirror-modal.active { display: block; }
+        .mirror-content {
+            max-width: 720px; margin: 0 auto;
+            background: #000; border: 3px solid #00ff41;
+            padding: 2rem; box-shadow: 0 0 50px rgba(0,255,65,0.5);
+        }
+        .mirror-title {
+            font-size: 1.5rem; font-weight: bold; color: #00ff41;
+            text-align: center; margin-bottom: 1rem; letter-spacing: 0.1em;
+            text-shadow: 0 0 15px #00ff41; border-bottom: 2px solid #00ff41;
+            padding-bottom: 1rem;
+        }
+        .mirror-intro {
+            font-size: 0.9rem; line-height: 1.8; opacity: 0.9;
+            margin-bottom: 2rem; text-align: center;
+        }
+        .mirror-question {
+            margin-bottom: 2rem;
+        }
+        .mirror-question-label {
+            font-weight: bold; font-size: 1rem; color: #00ff41;
+            margin-bottom: 0.5rem; display: block;
+        }
+        .mirror-question-hint {
+            font-size: 0.8rem; opacity: 0.7; margin-bottom: 0.75rem;
+            font-style: italic; display: block;
+        }
+        .mirror-textarea {
+            width: 100%; min-height: 100px; padding: 0.75rem;
+            background: rgba(0,255,65,0.05); border: 1px solid #00ff41;
+            color: #00ff41; font-family: 'Courier New', monospace;
+            font-size: 0.9rem; resize: vertical;
+        }
+        .mirror-covenant {
+            margin-top: 3rem; padding: 1.5rem; border: 2px solid #ffcc00;
+            background: rgba(255,204,0,0.05); display: none;
+        }
+        .mirror-covenant.active { display: block; }
+        .mirror-covenant-title {
+            font-size: 1.2rem; font-weight: bold; color: #ffcc00;
+            text-align: center; margin-bottom: 1rem; letter-spacing: 0.08em;
+        }
+        .mirror-covenant-text {
+            font-size: 0.9rem; line-height: 1.8; margin-bottom: 1.5rem;
+            text-align: center;
+        }
+        .mirror-signature-field {
+            margin: 1.5rem 0;
+        }
+        .mirror-signature-label {
+            font-weight: bold; font-size: 0.9rem; margin-bottom: 0.5rem;
+            display: block; color: #ffcc00;
+        }
+        .mirror-date-display {
+            text-align: center; font-size: 0.85rem; opacity: 0.7;
+            margin-top: 1rem;
+        }
+        .splash-save-label {
+            font-size: 0.75rem; opacity: 0.5; margin-top: 1.5rem;
+            letter-spacing: 0.05em;
+        }
+        .splash-corner {
+            position: absolute; width: 20px; height: 20px;
+            border-color: #00ff41; border-style: solid; opacity: 0.4;
+        }
+        .splash-corner.tl { top: 20px; left: 20px; border-width: 2px 0 0 2px; }
+        .splash-corner.tr { top: 20px; right: 20px; border-width: 2px 2px 0 0; }
+        .splash-corner.bl { bottom: 20px; left: 20px; border-width: 0 0 2px 2px; }
+        .splash-corner.br { bottom: 20px; right: 20px; border-width: 0 2px 2px 0; }
+    </style>
+</head>
+<body>
+    <!-- ── SPLASH SCREEN ── -->
+    <div id="splashScreen">
+        <div class="splash-scan"></div>
+        <div class="splash-corner tl"></div>
+        <div class="splash-corner tr"></div>
+        <div class="splash-corner bl"></div>
+        <div class="splash-corner br"></div>
+        <div class="splash-title">PROTOCOL SEVEN<br>ASCENSION ENGINE</div>
+        <div class="splash-tagline">Your Life is the Campaign.<br>Win It.</div>
+        <button class="splash-btn new-game" onclick="startNewGame()">▶ START NEW GAME</button>
+        <button class="splash-btn continue-game" id="continueBtn" onclick="continueGame()" disabled>↩ CONTINUE FROM LAST SAVE</button>
+        <div class="splash-save-label" id="splashSaveInfo">No save data found</div>
+        <button class="splash-credits-btn" onclick="showCredits()">CREDITS / ABOUT</button>
+    </div>
+
+    <!-- ── CREDITS MODAL ── -->
+    <div class="credits-modal" id="creditsModal" onclick="closeCredits()">
+        <div class="credits-content" onclick="event.stopPropagation()">
+            <div class="credits-title">THE REAL GAME</div>
+            <div class="credits-text">
+                <p>You opened this because you're tired of playing a game you didn't choose. The one where you wake up, chase metrics that don't satisfy, fight battles that don't matter, and collapse into bed wondering if any of it counts.</p>
+
+                <p><strong>Here's the truth:</strong> You're not stuck in the Matrix. You're stuck in the illusion that you have to break out alone.</p>
+
+                <p>This system — Ascension Engine — is a mirror. It tracks habits, XP, boss battles, streaks. But the real game? It's not about perfection. It's about <strong>surrender</strong>.</p>
+
+                <p>God already beat the final boss. He's not waiting for you to "level up" enough to deserve His presence. He's waiting for you to stop grinding, turn around, and realize <strong>He's been carrying the weight the entire time.</strong></p>
+
+                <p>Every worry, every anxiety, every "I'm not enough yet" — He already knows. And His response isn't "try harder." It's <strong>"I already won. Rest."</strong></p>
+
+                <p>So track your habits. Hit your goals. Build your empire. But know this: the scoreboard that matters isn't in this app. It's written in eternity, and it says you're already loved, already claimed, already His.</p>
+
+                <p>You're not escaping the Matrix by grinding harder. You're escaping by realizing <strong>you were never trapped</strong> — you just forgot who holds the controller.</p>
+
+                <p><strong>This isn't self-improvement. This is remembering who you were created to be.</strong></p>
+
+                <p>Now go. Play the game. But play it knowing the final score is already settled in your favor.</p>
+            </div>
+            <div class="credits-signature">
+                — Cedric Lee<br>
+                Creator, Protocol Seven
+            </div>
+            <div style="margin-top: 2rem; padding-top: 1.5rem; border-top: 1px solid #333; font-size: 0.7rem; opacity: 0.6; line-height: 1.6;">
+                © 2025 Cedric Lee / Omnexa Holdings. All Rights Reserved.<br>
+                Protocol Seven and Ascension Engine are trademarks of Omnexa Holdings.<br>
+                Unauthorized reproduction or distribution is prohibited.
+            </div>
+            <button class="btn primary" onclick="closeCredits()" style="margin-top: 2rem;">CLOSE</button>
+        </div>
+    </div>
+
+    <!-- ── MIRROR PROTOCOL MODAL ── -->
+    <div class="mirror-modal" id="mirrorModal">
+        <div class="mirror-content">
+            <div class="mirror-title">THE MIRROR PROTOCOL</div>
+            <div class="mirror-intro">
+                Before you build, you must examine.<br><br>
+                Protocol Seven isn't about chasing goals. It's about uncovering who God made you to be.<br>
+                That requires honesty.<br><br>
+                Answer these questions. Be raw. Be real.<br>
+                No one sees this but you and God.<br><br>
+                <strong>This is required once. After this, you can edit freely.<br>But do the work first.</strong>
+            </div>
+
+            <div class="mirror-question">
+                <label class="mirror-question-label">1. What are you running from?</label>
+                <span class="mirror-question-hint">What truth, pain, or reality are you avoiding by staying busy?</span>
+                <textarea class="mirror-textarea" id="mirror1" placeholder="Be honest..."></textarea>
+            </div>
+
+            <div class="mirror-question">
+                <label class="mirror-question-label">2. What are you using to numb yourself?</label>
+                <span class="mirror-question-hint">Social media, porn, food, work, substance, distraction — name it.</span>
+                <textarea class="mirror-textarea" id="mirror2" placeholder="Name what you're hiding behind..."></textarea>
+            </div>
+
+            <div class="mirror-question">
+                <label class="mirror-question-label">3. Why do you really want this?</label>
+                <span class="mirror-question-hint">Not the Instagram caption. The raw truth. What changes if you succeed?</span>
+                <textarea class="mirror-textarea" id="mirror3" placeholder="The real reason..."></textarea>
+            </div>
+
+            <div class="mirror-question">
+                <label class="mirror-question-label">4. What has to die for you to become this person?</label>
+                <span class="mirror-question-hint">What comfort, identity, excuse, or relationship ends when you level up?</span>
+                <textarea class="mirror-textarea" id="mirror4" placeholder="What are you willing to let go of?"></textarea>
+            </div>
+
+            <div class="mirror-question">
+                <label class="mirror-question-label">5. Can you surrender the outcome to God?</label>
+                <span class="mirror-question-hint">Or do you need to control every result? Be honest.</span>
+                <textarea class="mirror-textarea" id="mirror5" placeholder="Your answer..."></textarea>
+            </div>
+
+            <button class="btn primary" onclick="validateMirrorAnswers()" style="margin-top: 1rem;">SUBMIT REFLECTION</button>
+
+            <div class="mirror-covenant" id="mirrorCovenant">
+                <div class="mirror-covenant-title">YOUR COVENANT</div>
+                <div class="mirror-covenant-text">
+                    By signing below, you make a covenant with yourself and God:<br><br>
+                    <strong>To pursue truth, not comfort.</strong><br>
+                    <strong>To do the work, not make excuses.</strong><br>
+                    <strong>To show up, even when you fall.</strong><br><br>
+                    This is your documented commitment.<br>
+                    If you fall off, this remains.<br>
+                    <strong>No excuses. Only accountability.</strong>
+                </div>
+                <div class="mirror-signature-field">
+                    <label class="mirror-signature-label">Sign your full name:</label>
+                    <input type="text" class="input" id="mirrorSignature" placeholder="Your full name" style="margin: 0;">
+                </div>
+                <div class="mirror-date-display">Date: <span id="mirrorDate"></span></div>
+                <button class="btn primary" onclick="completeMirrorProtocol()" style="margin-top: 1.5rem;">💾 SIGN & COMPLETE</button>
+                <button class="btn" onclick="downloadMirrorReflection()" style="margin-top: 0.5rem;">📥 DOWNLOAD MY REFLECTION</button>
+            </div>
+        </div>
+    </div>
+    <div class="scan-line"></div>
+    <div class="character-badge" id="charBadge" onclick="showCharProfile()">👤</div>
+
+    <div class="header">
+        <div class="header-title">ASCENSION ENGINE</div>
+        <div class="player-name" id="playerName">PLAYER</div>
+        <div class="deadline-warning" id="deadlineWarning">LOADING...</div>
+        <div style="text-align: center; margin: 0.5rem 0;">
+            <div class="level-badge" id="mainLevelBadge">LVL 1</div>
+            <div class="xp-needed" id="xpNeeded">0 XP to Level 2</div>
+        </div>
+        <div class="xp-bar">
+            <div class="xp-fill" id="mainLevelBar"></div>
+            <div class="xp-text" id="mainLevelText">0 / 1000 XP</div>
+        </div>
+    </div>
+
+    <div class="nav-tabs">
+        <div class="nav-tab active" onclick="switchView('mission')">MISSION</div>
+        <div class="nav-tab" onclick="switchView('daily')">DAILY</div>
+        <div class="nav-tab" onclick="switchView('quests')">QUESTS</div>
+        <div class="nav-tab" onclick="switchView('stats')">STATS</div>
+        <div class="nav-tab" onclick="switchView('settings')">SETTINGS</div>
+    </div>
+
+    <!-- THE REAL GAME - Opening Message -->
+    <div id="realGameView" class="view active">
+        <div style="max-width: 600px; margin: 0 auto; padding: 2rem; font-family: 'Courier New', monospace;">
+            <h1 style="text-align: center; color: #00ff41; font-size: 2rem; margin-bottom: 2rem; letter-spacing: 4px;">THE REAL GAME</h1>
+            
+            <div style="color: #00ff41; line-height: 1.8; font-size: 0.95rem;">
+                <p>You opened this because you're tired of playing a game you didn't choose. The one where you wake up, chase metrics that don't satisfy, fight demons that don't die, and collapse into bed wondering if any of it counts.</p>
+                
+                <p>Here's the truth: You're not stuck in the Matrix. You're stuck in the illusion that you have to break out alone.</p>
+                
+                <p>This system — Ascension Engine — is a mirror. It tracks habits, XP, boss battles, streaks. But the real game? It's not about perfection. It's about surrender.</p>
+                
+                <p>God already beat the final boss. He's not waiting for you to "level up" before He accepts you. He's waiting for you to stop grinding, turn around, and realize He's been carrying the weight the entire time.</p>
+                
+                <p>Every worry, every anxiety, every "I'm not enough yet" — He already knows. And His response isn't "try harder." It's "I already won. Rest."</p>
+                
+                <p>So track your habits. Hit your goals. Build your empire. But know that the scorecard that matters isn't in this app. It's written in eternity, and it says you're already loved, already claimed, already His.</p>
+                
+                <p>You're not escaping the Matrix by grinding harder. You're escaping by realizing you were never trapped — you just forgot who holds the controller.</p>
+                
+                <p>This isn't self-improvement. This is remembering who you were created to be.</p>
+                
+                <p>Now go. Play the game. But play it knowing the final score is already settled in your favor.</p>
+                
+                <p style="text-align: right; margin-top: 2rem; font-style: italic;">— Cedric Lee<br>Creator, Protocol Seven</p>
+            </div>
+            
+            <div style="margin-top: 3rem; padding-top: 2rem; border-top: 1px solid #00ff41; font-size: 0.75rem; opacity: 0.6; text-align: center;">
+                <p>© 2025 Omnexa Lee | Omnexa Holdings: All Rights Reserved</p>
+                <p>Protocol Seven and Ascension Engine are trademarks of Omnexa Holdings.</p>
+                <p>Unauthorized reproduction or distribution is prohibited.</p>
+            </div>
+            
+            <button class="btn primary" onclick="closeRealGame()" style="width: 100%; margin-top: 2rem; padding: 1rem; font-size: 1.1rem;">
+                CLOSE
+            </button>
+        </div>
+    </div>
+
+    <div id="missionView" class="view">
+        <div class="panel" style="border-color: #ffcc00; background: rgba(255, 204, 0, 0.05);">
+            <div style="font-weight: bold; margin-bottom: 1rem; text-align: center; font-size: 1.2rem; color: #ffcc00;">PROTOCOL SEVEN</div>
+            <div style="font-size: 0.9rem; line-height: 1.7;">
+                <p>Select your battle in SETTINGS and start tracking! Each mission saves its own progress automatically - switch between them anytime!</p>
+            </div>
+        </div>
+        <div class="panel">
+            <div style="text-align: center; margin-bottom: 1rem; font-weight: bold; font-size: 1.2rem;" id="missionGoal">YOUR MISSION</div>
+            <div class="xp-bar xp-bar-big">
+                <div class="xp-fill" id="moneyBar"></div>
+                <div class="xp-text" id="moneyText" style="font-size: 1rem;">$0 / $1,000,000</div>
+            </div>
+            <input type="number" class="input" id="revInput" placeholder="$ Amount" step="0.01" style="margin-bottom: 0.5rem;">
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 0.5rem;">
+                <button class="btn primary" id="logBtnPositive" onclick="logPositive()">💰 PROFIT</button>
+                <button class="btn" id="logBtnNegative" onclick="logNegative()" style="background: #ff4444; border-color: #ff4444;">📉 LOSS</button>
+            </div>
+            <div id="currentWeightDisplay" style="display: none; text-align: center; margin-top: 1rem; padding: 1rem; background: rgba(0, 255, 65, 0.1); border: 2px solid #00ff41; border-radius: 8px;">
+                <div style="font-size: 0.85rem; opacity: 0.7; margin-bottom: 0.25rem;">CURRENT WEIGHT</div>
+                <div id="currentWeightValue" style="font-size: 1.5rem; font-weight: bold; color: #00ff41;">200 lbs</div>
+                <div id="weightChangeIndicator" style="font-size: 0.75rem; margin-top: 0.25rem; opacity: 0.6;"></div>
+            </div>
+            <div style="text-align: center; margin-top: 1rem; font-size: 0.875rem; opacity: 0.8;" id="paceIndicator"></div>
+        </div>
+
+        <div class="panel">
+            <div style="font-weight: bold; margin-bottom: 1rem; font-size: 1.1rem;">BOSS BATTLES</div>
+            <div id="bossList"></div>
+        </div>
+
+        <div class="panel">
+            <div style="font-weight: bold; margin-bottom: 1rem;">TODAY'S STATUS</div>
+            <div class="stat"><span>XP Earned</span><span id="missionTodayXP">0</span></div>
+            <div class="stat"><span>Habits Done</span><span id="missionHabitsCount">0/25</span></div>
+            <div class="stat"><span>Streak</span><span id="missionStreak">0 🔥</span></div>
+        </div>
+    </div>
+
+    <div id="dailyView" class="view">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin: 1rem 0; gap: 0.5rem;">
+            <button class="btn" style="width: auto; padding: 0.5rem 1rem;" onclick="changeDate(-1)">← PREV</button>
+            <div id="currentDate" style="font-weight: bold; font-size: 0.875rem; text-align: center;"></div>
+            <button class="btn" style="width: auto; padding: 0.5rem 1rem;" id="nextBtn" onclick="changeDate(1)">NEXT →</button>
+        </div>
+        
+        <!-- Save Progress Reminder -->
+        <div style="background: rgba(255, 204, 0, 0.1); border: 1px solid #ffcc00; border-radius: 4px; padding: 0.75rem; margin: 1rem 0; text-align: center;">
+            <span style="color: #ffcc00; font-weight: bold;">💾 Reminder:</span>
+            <span style="opacity: 0.9;"> Don't forget to save your progress after tracking!</span>
+            <button class="btn" onclick="exportSettings()" style="margin-left: 1rem; padding: 0.4rem 1rem; font-size: 0.85rem;">💾 Save Now</button>
+        </div>
+
+
+        <div class="panel">
+            <div style="margin-bottom: 0.5rem;">TODAY'S PROGRESS</div>
+            <div class="xp-bar xp-bar-big">
+                <div class="xp-fill" id="dailyBar"></div>
+                <div class="xp-text" id="dailyText" style="font-size: 1rem;">0 / 1450 XP</div>
+            </div>
+        </div>
+
+        <div id="habitsContainer"></div>
+
+        <div class="panel" style="margin-top: 1.5rem;">
+            <div style="font-weight: bold; margin-bottom: 0.75rem; font-size: 1.1rem;">DAILY JOURNAL</div>
+            <div style="font-size: 0.8rem; opacity: 0.7; margin-bottom: 0.75rem;">
+                What happened today? How did you show up? What did God reveal?
+            </div>
+            <textarea class="input" id="dailyJournal" placeholder="Write your reflection for today..." style="min-height: 120px; margin: 0;"></textarea>
+            <div style="font-size: 0.7rem; opacity: 0.5; margin-top: 0.5rem; text-align: right;" id="journalStatus">Auto-saved</div>
+        </div>
+    </div>
+
+    <div id="questsView" class="view">
+        <div class="panel">
+            <div style="font-weight: bold; margin-bottom: 1rem; font-size: 1.1rem;">SIDE QUESTS</div>
+            <div style="opacity: 0.7; margin-bottom: 1rem; font-size: 0.875rem;">Optional missions for bonus XP</div>
+            <div id="questsList"></div>
+        </div>
+        <button class="btn" onclick="resetQuests()">↻ RESET QUESTS</button>
+    </div>
+
+    <div id="statsView" class="view">
+        <div class="panel">
+            <div style="font-weight: bold; margin-bottom: 1rem; text-align: center; font-size: 1.2rem;">CHARACTER STATS</div>
+            <div class="stat"><span>Total XP</span><span id="statsTotalXP">0</span></div>
+            <div class="stat"><span>Current Level</span><span id="statsLevel">1</span></div>
+            <div class="stat"><span>Streak Days</span><span id="statsStreak">0</span></div>
+            <div class="stat"><span>Total Revenue</span><span id="statsRevenue">$0</span></div>
+            <div class="stat"><span>Habits Completed</span><span id="statsHabitsTotal">0</span></div>
+            <div class="stat"><span>Quests Done</span><span id="statsQuestsTotal">0</span></div>
+            <div class="stat"><span>Bosses Defeated</span><span id="statsBossesTotal">0</span></div>
+        </div>
+
+        <div class="panel">
+            <div style="font-weight: bold; margin-bottom: 1rem;">ACTIVITY LOG</div>
+            <div style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 0.4rem; margin-bottom: 1rem;">
+                <button class="btn" id="filter7" onclick="setFilter(7)" style="padding: 0.5rem 0.25rem; font-size: 0.75rem; margin: 0;">7 Days</button>
+                <button class="btn" id="filter14" onclick="setFilter(14)" style="padding: 0.5rem 0.25rem; font-size: 0.75rem; margin: 0;">14 Days</button>
+                <button class="btn" id="filter30" onclick="setFilter(30)" style="padding: 0.5rem 0.25rem; font-size: 0.75rem; margin: 0;">30 Days</button>
+                <button class="btn" id="filterCustom" onclick="toggleCustomRange()" style="padding: 0.5rem 0.25rem; font-size: 0.75rem; margin: 0;">Custom</button>
+            </div>
+            <div id="customRangePanel" style="display: none; margin-bottom: 1rem; padding: 0.75rem; border: 1px solid #333; background: rgba(0,255,65,0.05);">
+                <div style="font-size: 0.8rem; margin-bottom: 0.5rem; opacity: 0.8;">Select date range:</div>
+                <div style="margin-bottom: 0.5rem;">
+                    <div style="font-size: 0.75rem; opacity: 0.7; margin-bottom: 0.25rem;">From:</div>
+                    <input type="date" class="input" id="dateFrom" style="margin: 0;">
+                </div>
+                <div style="margin-bottom: 0.75rem;">
+                    <div style="font-size: 0.75rem; opacity: 0.7; margin-bottom: 0.25rem;">To:</div>
+                    <input type="date" class="input" id="dateTo" style="margin: 0;">
+                </div>
+                <button class="btn primary" onclick="applyCustomRange()" style="margin: 0;">APPLY RANGE</button>
+            </div>
+            <div id="activityLabel" style="font-size: 0.75rem; opacity: 0.7; margin-bottom: 0.5rem; text-align: center;">Showing last 7 days</div>
+            <div id="recentActivity"></div>
+        </div>
+
+        <div class="panel">
+            <div style="font-weight: bold; margin-bottom: 1rem;">EXPORT DAILY LOGS</div>
+            <div style="font-size: 0.85rem; opacity: 0.8; margin-bottom: 1rem; line-height: 1.5;">
+                Export a full breakdown of your daily habit completion, XP earned, and revenue logged — formatted as a CSV you can open in Excel or Google Sheets.
+            </div>
+            <div style="margin-bottom: 0.75rem;">
+                <div style="font-size: 0.8rem; opacity: 0.7; margin-bottom: 0.25rem;">Export range (days back from today):</div>
+                <select class="input" id="exportRange" style="margin: 0;">
+                    <option value="7">Last 7 days</option>
+                    <option value="14">Last 14 days</option>
+                    <option value="30">Last 30 days</option>
+                    <option value="60">Last 60 days</option>
+                    <option value="90">Last 90 days</option>
+                    <option value="365">Full year</option>
+                </select>
+            </div>
+            <button class="btn primary" onclick="exportDailyLogs()">📊 EXPORT DAILY LOGS (CSV)</button>
+        </div>
+    </div>
+
+    <div id="settingsView" class="view">
+        <div class="panel">
+            <div class="section-title">PLAYER PROFILE</div>
+            <label id="startingWeightLabel" style="display: none; margin: 1rem 0;">
+                <div style="margin-bottom: 0.5rem;">Starting Weight (lbs):</div>
+                <input type="number" class="input" id="startingWeightInput" placeholder="200" step="0.1">
+            </label>
+            <label style="display: block; margin: 1rem 0;">
+                <div style="margin-bottom: 0.5rem;">Your Name:</div>
+                <input type="text" class="input" id="nameInput" placeholder="Your Name">
+            </label>
+            <button class="btn" onclick="saveName()">SAVE NAME</button>
+            <button class="btn primary" onclick="exportSettings()">💾 SAVE PROGRESS</button>
+            <div style="font-size: 0.75rem; opacity: 0.6; text-align: center; margin-top: 0.25rem;">Saves a full backup — habits, XP, revenue, everything</div>
+            <button class="btn" onclick="exitGame()" style="margin-top: 1rem;">← EXIT GAME</button>
+            <div style="font-size: 0.75rem; opacity: 0.6; text-align: center; margin-top: 0.25rem;">Returns to start screen</div>
+            <button class="btn" onclick="reviewMirrorProtocol()" style="margin-top: 1rem; border-color: #ffcc00; color: #ffcc00;">📖 REVIEW MIRROR PROTOCOL</button>
+            <div style="font-size: 0.75rem; opacity: 0.6; text-align: center; margin-top: 0.25rem;">View your covenant & reflection</div>
+        </div>
+
+        <div class="panel">
+            <div class="section-title">TIME ZONE</div>
+            <div style="font-size: 0.8rem; opacity: 0.8; margin-bottom: 0.75rem;">Your day resets at midnight in the selected timezone. Set this correctly so your habits track with your actual day.</div>
+            <label style="display: block; margin: 0.5rem 0;">
+                <div style="margin-bottom: 0.5rem;">Select Your Timezone:</div>
+                <select class="input" id="timezoneSelect" onchange="saveTimezone()" style="margin: 0;">
+                    <optgroup label="🇺🇸 United States">
+                        <option value="America/New_York">Eastern Time — New York, Miami, Atlanta</option>
+                        <option value="America/Chicago">Central Time — Chicago, Dallas, Houston</option>
+                        <option value="America/Denver">Mountain Time — Denver, Phoenix</option>
+                        <option value="America/Los_Angeles">Pacific Time — Los Angeles, Seattle</option>
+                        <option value="America/Anchorage">Alaska Time</option>
+                        <option value="Pacific/Honolulu">Hawaii Time</option>
+                    </optgroup>
+                    <optgroup label="🌎 Americas">
+                        <option value="America/Toronto">Toronto / Eastern Canada</option>
+                        <option value="America/Vancouver">Vancouver / Pacific Canada</option>
+                        <option value="America/Mexico_City">Mexico City</option>
+                        <option value="America/Sao_Paulo">São Paulo / Brazil</option>
+                        <option value="America/Bogota">Bogotá / Colombia</option>
+                        <option value="America/Lima">Lima / Peru</option>
+                        <option value="America/Buenos_Aires">Buenos Aires / Argentina</option>
+                    </optgroup>
+                    <optgroup label="🌍 Europe & Africa">
+                        <option value="Europe/London">London / UK (GMT)</option>
+                        <option value="Europe/Paris">Paris / Berlin / Rome (CET)</option>
+                        <option value="Europe/Moscow">Moscow</option>
+                        <option value="Africa/Lagos">Lagos / West Africa</option>
+                        <option value="Africa/Nairobi">Nairobi / East Africa</option>
+                        <option value="Africa/Johannesburg">Johannesburg / South Africa</option>
+                    </optgroup>
+                    <optgroup label="🌏 Asia & Pacific">
+                        <option value="Asia/Dubai">Dubai / UAE</option>
+                        <option value="Asia/Karachi">Karachi / Pakistan</option>
+                        <option value="Asia/Kolkata">Mumbai / India (IST)</option>
+                        <option value="Asia/Dhaka">Dhaka / Bangladesh</option>
+                        <option value="Asia/Bangkok">Bangkok / Thailand</option>
+                        <option value="Asia/Singapore">Singapore / Malaysia</option>
+                        <option value="Asia/Shanghai">Shanghai / Beijing / China</option>
+                        <option value="Asia/Tokyo">Tokyo / Japan</option>
+                        <option value="Asia/Seoul">Seoul / South Korea</option>
+                        <option value="Australia/Sydney">Sydney / Australia (AEST)</option>
+                        <option value="Pacific/Auckland">Auckland / New Zealand</option>
+                    </optgroup>
+                </select>
+            </label>
+            <div style="font-size: 0.75rem; opacity: 0.6; margin-top: 0.5rem; text-align: center;" id="tzCurrentTime">—</div>
+        </div>
+
+        <div class="panel">
+            <div class="section-title">CHARACTER AVATAR</div>
+            <div class="character-grid" id="charGrid"></div>
+        </div>
+
+        <div class="panel">
+            <div class="section-title">DIFFICULTY MODE</div>
+            <div class="difficulty-selector">
+                <div class="difficulty-btn" data-diff="easy" onclick="setDifficulty('easy')">
+                    <div style="font-size: 1.5rem; margin-bottom: 0.5rem;">😊</div>
+                    <div style="font-size: 0.875rem;">EASY</div>
+                    <div style="font-size: 0.75rem; opacity: 0.7;">Fast leveling</div>
+                </div>
+                <div class="difficulty-btn" data-diff="medium" onclick="setDifficulty('medium')">
+                    <div style="font-size: 1.5rem; margin-bottom: 0.5rem;">💪</div>
+                    <div style="font-size: 0.875rem;">MEDIUM</div>
+                    <div style="font-size: 0.75rem; opacity: 0.7;">Balanced</div>
+                </div>
+                <div class="difficulty-btn" data-diff="hard" onclick="setDifficulty('hard')">
+                    <div style="font-size: 1.5rem; margin-bottom: 0.5rem;">🔥</div>
+                    <div style="font-size: 0.875rem;">HARD</div>
+                    <div style="font-size: 0.75rem; opacity: 0.7;">Slow grind</div>
+                </div>
+            </div>
+        </div>
+
+        <div class="panel">
+            <div class="section-title">MISSION TYPE & GOAL</div>
+            <label style="display: block; margin: 1rem 0;">
+                <div style="margin-bottom: 0.5rem; font-weight: bold;">Select Your Battle:</div>
+                <select class="input" id="missionTypeSelect" onchange="updateMissionUI()" style="margin: 0;">
+                    <option value="financial">💰 Financial Goal</option>
+                    <option value="debt">💳 Pay Off Debt</option>
+                    <option value="lust">🛡️ Overcome Lust</option>
+                    <option value="sobriety">🚫 Sobriety</option>
+                    <option value="weight_loss">⚖️ Lose Weight</option>
+                    <option value="faithfulness">💍 Faithfulness</option>
+                </select>
+            </label>
+            <label style="display: block; margin: 1rem 0;">
+                <div style="margin-bottom: 0.5rem;" id="goalLabel">Target Amount ($):</div>
+                <input type="number" class="input" id="goalInput" placeholder="100000">
+            </label>
+            <label style="display: block; margin: 1rem 0;">
+                <div style="margin-bottom: 0.5rem; font-weight: bold; color: #ffcc00;">⏰ DEADLINE DATE (EDITABLE!):</div>
+                <input type="date" class="input" id="deadlineInput" >
+            </label>
+            <button class="btn primary" onclick="saveGoal()">💾 SAVE GOAL & DEADLINE</button>
+            <div style="margin-top: 0.5rem; font-size: 0.75rem; opacity: 0.7; text-align: center;">
+                You can change your deadline anytime - just pick a new date and save!
+            </div>
+        </div>
+
+        <div class="panel">
+            <div class="section-title">CUSTOM HABITS</div>
+            <div style="font-size: 0.8rem; opacity: 0.8; margin-bottom: 0.5rem;">✨ Add as many habits as you want - no limit!</div>
+            <button class="btn" onclick="showXPGuide()">📖 XP VALUE GUIDE</button>
+            <button class="btn" onclick="editHabits()">✏️ EDIT HABITS</button>
+            <button class="btn" onclick="resetHabits()">↻ RESET TO DEFAULT</button>
+        </div>
+
+        <div class="panel">
+            <div class="section-title">CUSTOM SIDE QUESTS</div>
+            <div style="font-size: 0.8rem; opacity: 0.8; margin-bottom: 0.5rem;">✨ Add as many quests as you want - no limit!</div>
+            <button class="btn" onclick="editQuests()">✏️ EDIT QUESTS</button>
+            <button class="btn" onclick="resetQuests2()">↻ RESET TO DEFAULT</button>
+        </div>
+
+        <div class="panel">
+            <div class="section-title">CUSTOM BOSS BATTLES</div>
+            <button class="btn" onclick="editBosses()">✏️ EDIT BOSSES</button>
+            <button class="btn" onclick="resetBosses()">↻ RESET TO DEFAULT</button>
+        </div>
+
+        <div class="panel">
+            <div class="section-title">DATA MANAGEMENT</div>
+            <button class="btn" onclick="exportSettings()">💾 EXPORT SAVED GAME</button>
+            <button class="btn" onclick="importSettings()">📂 IMPORT SAVED GAME</button>
+            <button class="btn primary" onclick="downloadStarterPack()">📦 DOWNLOAD STARTER PACK</button>
+            <button class="btn" onclick="exportJournalHistory()">📓 EXPORT JOURNAL HISTORY</button>
+            <button class="btn danger" onclick="resetAll()">🗑️ RESET ALL DATA</button>
+        </div>
+
+        <div class="panel dev-note">
+            <div style="font-weight: bold; margin-bottom: 1rem; font-size: 1.1rem; color: #ffcc00; text-align: center;">DEVELOPER NOTE</div>
+            <div style="font-size: 0.9rem; line-height: 1.8; opacity: 0.95;">
+                <p style="margin-bottom: 0;">You're not improving yourself. You're uncovering who God already made you to be. This system tracks the execution, but the power comes from surrender — show up daily, trust the process, and watch Him move through your discipline.</p>
+            </div>
+            <div style="margin-top: 1.5rem; text-align: right; font-size: 0.85rem; opacity: 0.8; color: #ffcc00;">
+                — Cedric Lee, Creator of Protocol Seven
+            </div>
+        </div>
+    </div>
+
+    <div class="overlay" id="overlay" onclick="closeModals()" style="display:none"></div>
+    <div id="milestoneNotif" style="display: none;"></div>
+
+    <div class="modal" id="xpGuideModal">
+        <div style="font-weight: bold; margin-bottom: 1rem; font-size: 1.3rem; text-align: center;">XP VALUE GUIDE</div>
+        <div style="font-size: 0.875rem; margin-bottom: 1rem; opacity: 0.8;">
+            Use this guide to set appropriate XP values:
+        </div>
+
+        <div class="xp-guide">
+            <div style="font-weight: bold; font-size: 1rem;">20-30 XP: Quick Routines</div>
+            <div class="xp-example">⏱ 5-10 minutes | Examples: Making bed, hygiene</div>
+        </div>
+
+        <div class="xp-guide">
+            <div style="font-weight: bold; font-size: 1rem;">40-60 XP: Foundation Habits</div>
+            <div class="xp-example">⏱ 15-30 minutes | Examples: Meditation, exercise</div>
+        </div>
+
+        <div class="xp-guide">
+            <div style="font-weight: bold; font-size: 1rem;">80-100 XP: High-Impact Work</div>
+            <div class="xp-example">⏱ 60-90 minutes | Examples: Deep work, outreach</div>
+        </div>
+
+        <div class="xp-guide">
+            <div style="font-weight: bold; font-size: 1rem;">120-150 XP: Critical Operations</div>
+            <div class="xp-example">⏱ 90+ minutes | Examples: Major projects</div>
+        </div>
+
+        <div style="margin: 1rem 0; padding: 1rem; border: 2px solid #00ff41; background: rgba(0,255,0,0.05);">
+            <div style="font-size: 0.875rem; font-weight: bold; margin-bottom: 0.5rem;">⚖️ BALANCE PRINCIPLE:</div>
+            <div style="font-size: 0.8rem;">Total daily XP should be 1000-1500. Set values based on TIME + IMPACT.</div>
+        </div>
+
+        <button class="btn" onclick="closeModals()">GOT IT</button>
+    </div>
+
+    <div class="modal" id="habitsModal">
+        <div style="font-weight: bold; margin-bottom: 1rem; font-size: 1.3rem;">EDIT HABITS</div>
+        <div style="font-size: 0.875rem; opacity: 0.7; margin-bottom: 1rem;">
+            Format: Habit Name,XP Value (one per line)<br>
+            ✨ Add as many as you want - no limit!
+        </div>
+        <textarea id="habitsText" placeholder="Wake at 5AM,50
+Trading Execution,100
+Client Outreach,100
+Physical Training,50"></textarea>
+        <button class="btn primary" onclick="saveHabits()">SAVE HABITS</button>
+        <button class="btn" onclick="closeModals()">CANCEL</button>
+    </div>
+
+    <div class="modal" id="questsModal">
+        <div style="font-weight: bold; margin-bottom: 1rem; font-size: 1.3rem;">EDIT SIDE QUESTS</div>
+        <div style="font-size: 0.875rem; opacity: 0.7; margin-bottom: 1rem;">
+            Format: Quest Name,XP Value (one per line)<br>
+            ✨ Add as many as you want - no limit!
+        </div>
+        <textarea id="questsText" placeholder="Close $10k Deal,1000
+Book Important Meeting,500
+Complete Major Project,800
+Network with 5 People,300"></textarea>
+        <button class="btn primary" onclick="saveQuests()">SAVE QUESTS</button>
+        <button class="btn" onclick="closeModals()">CANCEL</button>
+    </div>
+
+    <div class="modal" id="bossesModal">
+        <div style="font-weight: bold; margin-bottom: 1rem; font-size: 1.3rem;">EDIT BOSS BATTLES</div>
+        <div style="font-size: 0.875rem; opacity: 0.7; margin-bottom: 1rem;">
+            Format: Amount,Boss Name,XP Reward (one per line)
+        </div>
+        <textarea id="bossesText" placeholder="100000,First Capital Boss,5000
+500000,Half Million Boss,15000
+1000000,Millionaire Boss,50000"></textarea>
+        <button class="btn primary" onclick="saveBosses()">SAVE BOSSES</button>
+        <button class="btn" onclick="closeModals()">CANCEL</button>
+    </div>
+
+    <div class="modal" id="charModal">
+        <div style="font-weight: bold; margin-bottom: 1rem; font-size: 1.3rem; text-align: center;">CHARACTER PROFILE</div>
+        <div style="text-align: center; font-size: 4rem; margin: 1rem 0;" id="charDisplay"></div>
+        <div style="text-align: center; font-size: 1.3rem; margin: 1rem 0; font-weight: bold;" id="charName"></div>
+        <div style="margin: 1rem 0;">
+            <div class="stat"><span>Level</span><span id="charLevel">1</span></div>
+            <div class="stat"><span>Total XP</span><span id="charXP">0</span></div>
+            <div class="stat"><span>Streak</span><span id="charStreak">0 days</span></div>
+            <div class="stat"><span>Revenue</span><span id="charRevenue">$0</span></div>
+        </div>
+        <button class="btn" onclick="closeModals()">CLOSE</button>
+    </div>
+
+    <script>
+        const DEFAULT_HABITS = [
+            {n:"Morning Routine",x:50},{n:"Exercise",x:60},{n:"Main Work",x:100},{n:"Learning",x:40},{n:"Evening Review",x:30}
+        ];
+
+        const DEFAULT_QUESTS = [
+            {n:"Complete a Project",x:500},{n:"Network",x:300},{n:"Learn a Skill",x:400}
+        ];
+
+        const DEFAULT_BOSSES = [
+            {amt:100000,name:"First Capital Boss",reward:5000},
+            {amt:250000,name:"Quarter Million Boss",reward:10000},
+            {amt:500000,name:"Half Million Boss",reward:15000},
+            {amt:750000,name:"Three Quarter Boss",reward:20000},
+            {amt:1000000,name:"MILLIONAIRE BOSS",reward:50000}
+        ];
+
+        const CHARACTERS = ['👤','🦸','🥷','🧙','👨‍💼','👩‍💼','🦹','🧑‍🚀','👨‍🎤','👩‍🎤','🕵️','👨‍💻','👩‍💻','🧑‍🔬','👨‍🏫','👩‍🏫'];
+
+        const DIFFICULTY = {
+            easy: [0,500,750,1000,1250,1500,1750,2000,2250,2500,3000,3500,4000,4500,5000,6000,7000,8000,9000,10000],
+            medium: [0,1000,1500,2000,2500,3000,3500,4000,4500,5000,6000,7000,8000,9000,10000,11500,13000,14500,16000,18000,20000],
+            hard: [0,2000,3000,4000,5000,6000,7000,8000,9000,10000,12000,14000,16000,18000,20000,22000,24000,26000,28000,30000]
+        };
+
+        const MISSION_TEMPLATES = {
+            financial: {name:'Financial Goal', unit:'$', inputType:'amount', bosses:[{amt:100000,name:'First Capital',reward:5000},{amt:250000,name:'Quarter Million',reward:10000},{amt:500000,name:'Half Million',reward:15000},{amt:750000,name:'Three Quarters',reward:20000},{amt:1000000,name:'Millionaire',reward:50000}]},
+            debt: {name:'Pay Off Debt', unit:'$', inputType:'amount', bosses:[{amt:5000,name:'First Victory',reward:2000},{amt:10000,name:'Momentum',reward:4000},{amt:25000,name:'Major Progress',reward:8000},{amt:50000,name:'Nearly Free',reward:12000},{amt:100000,name:'Debt Freedom',reward:25000}]},
+            lust: {name:'Overcome Lust', unit:' days', inputType:'day', bosses:[{amt:7,name:'First Week',reward:3000},{amt:30,name:'One Month',reward:8000},{amt:90,name:'Three Months',reward:15000},{amt:180,name:'Half Year',reward:25000},{amt:365,name:'One Year',reward:50000}]},
+            sobriety: {name:'Sobriety', unit:' days', inputType:'day', bosses:[{amt:7,name:'First Week',reward:3000},{amt:30,name:'One Month',reward:8000},{amt:90,name:'Three Months',reward:15000},{amt:180,name:'Half Year',reward:25000},{amt:365,name:'One Year',reward:50000}]},
+            weight_loss: {name:'Lose Weight', unit:' lbs', inputType:'weight_loss', bosses:[{amt:10,name:'First 10 Pounds',reward:3000},{amt:25,name:'Quarter Way',reward:8000},{amt:50,name:'Halfway',reward:15000},{amt:75,name:'Major Transform',reward:25000},{amt:100,name:'Victory',reward:50000}]},
+            faithfulness: {name:'Faithfulness', unit:' days', inputType:'day', bosses:[{amt:7,name:'First Week',reward:3000},{amt:30,name:'One Month',reward:8000},{amt:90,name:'Three Months',reward:15000},{amt:180,name:'Half Year',reward:25000},{amt:365,name:'One Year',reward:50000}]}
+        };
+
+
+        let currentDate = getTodayInTZ();
+
+        function get(k) { try { return JSON.parse(localStorage.getItem(k)); } catch { return null; } }
+        function set(k, v) { localStorage.setItem(k, JSON.stringify(v)); }
+
+        
+        // ── MISSION-SPECIFIC STORAGE HELPERS ─────────────────────
+        function getMissionKey(key) {
+            const missionType = get('missionType') || 'financial';
+            return `${key}_${missionType}`;
+        }
+        
+        function getMissionData(key) {
+            return get(getMissionKey(key));
+        }
+        
+        function setMissionData(key, value) {
+            set(getMissionKey(key), value);
+        }
+
+        function getConfig() {
+            const missionType = get('missionType') || 'financial';
+            const mission = MISSION_TEMPLATES[missionType] || MISSION_TEMPLATES.financial;
+            return {
+                name: get('name') || 'PLAYER',
+                char: get('char') || '👤',
+                diff: get('diff') || 'medium',
+                goal: get('goal') || 100000,
+                deadline: get('deadline') || '2026-07-15',
+                habits: get('habits') || DEFAULT_HABITS,
+                quests: get('quests') || DEFAULT_QUESTS,
+                bosses: get('bosses') || mission.bosses,
+                missionType: missionType,
+                mission: mission
+            };
+        }
+
+        function getTotalXP() {
+            let xp = 0;
+            for(let i = 0; i < 365; i++) {
+                const d = new Date();
+                d.setDate(d.getDate() - i);
+                const key = 'habits-' + d.toISOString().split('T')[0];
+                const data = get(key) || {};
+                Object.values(data).forEach(v => xp += v);
+            }
+            const questsData = get('quests_completed') || {};
+            Object.values(questsData).forEach(v => xp += v);
+            const config = getConfig();
+            const revenue = parseFloat(getMissionData('totalRevenue') || '0');
+            config.bosses.forEach(boss => { if(revenue >= boss.amt) xp += boss.reward; });
+            return xp;
+        }
+
+        function getLevel(totalXP) {
+            const config = getConfig();
+            const levels = DIFFICULTY[config.diff];
+            let level = 1;
+            for(let i = 1; i < levels.length; i++) {
+                if(totalXP >= levels[i]) level = i + 1;
+                else break;
+            }
+            return { level, currentLevelXP: levels[level - 1] || 0, nextLevelXP: levels[level] || levels[levels.length - 1] * 2 };
+        }
+
+        function getStreak() {
+            const config = getConfig();
+            const maxDailyXP = config.habits.reduce((sum, h) => sum + h.x, 0);
+            let streak = 0;
+            for(let i = 1; i < 365; i++) {
+                const d = new Date();
+                d.setDate(d.getDate() - i);
+                const key = 'habits-' + d.toISOString().split('T')[0];
+                const data = get(key) || {};
+                const dayXP = Object.values(data).reduce((a, b) => a + b, 0);
+                if(dayXP >= maxDailyXP * 0.8) streak++;
+                else break;
+            }
+            return streak;
+        }
+
+        function updateHeader() {
+            const config = getConfig();
+            const totalXP = getTotalXP();
+            const {level, currentLevelXP, nextLevelXP} = getLevel(totalXP);
+            const xpInLevel = totalXP - currentLevelXP;
+            const xpNeeded = nextLevelXP - currentLevelXP;
+            const xpRemaining = xpNeeded - xpInLevel;
+            const progress = (xpInLevel / xpNeeded * 100).toFixed(0);
+            
+            document.getElementById('playerName').textContent = config.name.toUpperCase();
+            document.getElementById('mainLevelBadge').textContent = `LVL ${level}`;
+            document.getElementById('xpNeeded').textContent = `${xpRemaining.toLocaleString()} XP to Level ${level + 1}`;
+            document.getElementById('mainLevelBar').style.width = progress + '%';
+            document.getElementById('mainLevelText').textContent = `${xpInLevel.toLocaleString()} / ${xpNeeded.toLocaleString()} XP`;
+            document.getElementById('charBadge').textContent = config.char;
+            
+            const deadline = new Date(config.deadline);
+            const daysLeft = Math.ceil((deadline - new Date()) / (1000 * 60 * 60 * 24));
+            document.getElementById('deadlineWarning').textContent = `${daysLeft} DAYS TO DEADLINE`;
+            
+            const lastLevel = parseInt(localStorage.getItem('lastKnownLevel') || '1');
+            if(level > lastLevel) {
+                localStorage.setItem('lastKnownLevel', level);
+                showMilestone('level', level);
+            }
+        }
+
+        
+        function updateCurrentWeight() {
+            const config = getConfig();
+            const mission = config.mission;
+            const weightDisplay = document.getElementById('currentWeightDisplay');
+            const weightValue = document.getElementById('currentWeightValue');
+            const weightChange = document.getElementById('weightChangeIndicator');
+            
+            if (!weightDisplay || !weightValue || !weightChange) return;
+            
+            // Only show for weight loss mission
+            if (mission.inputType === 'weight_loss') {
+                const startingWeight = getMissionData('startingWeight');
+                if (startingWeight) {
+                    const progress = parseFloat(getMissionData('totalRevenue') || '0');
+                    const currentWeight = startingWeight - progress;
+                    
+                    weightDisplay.style.display = 'block';
+                    weightValue.textContent = `${currentWeight.toFixed(1)} lbs`;
+                    
+                    // Show change indicator
+                    if (progress > 0) {
+                        weightChange.textContent = `↓ ${progress.toFixed(1)} lbs from start (${startingWeight} lbs)`;
+                        weightChange.style.color = '#00ff41';
+                    } else if (progress < 0) {
+                        weightChange.textContent = `↑ ${Math.abs(progress).toFixed(1)} lbs from start (${startingWeight} lbs)`;
+                        weightChange.style.color = '#ff4444';
+                    } else {
+                        weightChange.textContent = `Starting weight: ${startingWeight} lbs`;
+                        weightChange.style.color = '#ffcc00';
+                    }
+                } else {
+                    weightDisplay.style.display = 'none';
+                }
+            } else {
+                weightDisplay.style.display = 'none';
+            }
+        }
+
+        function updateMission() {
+            const config = getConfig();
+            const mission = config.mission;
+            const revenue = parseFloat(getMissionData('totalRevenue') || '0');
+            const progress = config.goal > 0 ? (revenue / config.goal * 100).toFixed(1) : 0;
+            
+            // Update mission title with mission name
+            const missionGoal = document.getElementById('missionGoal');
+            if (missionGoal) {
+                missionGoal.textContent = mission.name.toUpperCase();
+            }
+            
+            // Update progress bar
+            const moneyBar = document.getElementById('moneyBar');
+            if (moneyBar) {
+                moneyBar.style.width = progress + '%';
+            }
+            
+            // Update progress text with mission-specific units
+            const moneyText = document.getElementById('moneyText');
+            if (moneyText) {
+                let displayText = '';
+                if (mission.unit === '$') {
+                    displayText = `$${revenue.toLocaleString()} / $${config.goal.toLocaleString()}`;
+                } else {
+                    displayText = `${revenue}${mission.unit} / ${config.goal}${mission.unit}`;
+                }
+                moneyText.textContent = displayText;
+            }
+            
+            // Update input field and buttons based on mission type
+            const revInput = document.getElementById('revInput');
+            const btnPositive = document.getElementById('logBtnPositive');
+            const btnNegative = document.getElementById('logBtnNegative');
+            
+            if (revInput && btnPositive && btnNegative) {
+                if (mission.inputType === 'day') {
+                    // Day-based missions: Hide input, show day buttons
+                    revInput.style.display = 'none';
+                    btnPositive.textContent = '✅ DAY COMPLETED';
+                    btnNegative.textContent = '❌ DAY FAILED';
+                    btnNegative.style.background = '#ff4444';
+                } else if (mission.inputType === 'weight_loss') {
+                    // Weight tracking: Show weight input and weight buttons
+                    revInput.style.display = 'block';
+                    revInput.placeholder = 'Weight Change (lbs)';
+                    btnPositive.textContent = '⬇️ WEIGHT LOST';
+                    btnPositive.style.background = '#00ff41';
+                    btnNegative.textContent = '⬆️ WEIGHT GAINED';
+                    btnNegative.style.background = '#ff4444';
+                } else if (mission.unit === '$') {
+                    // Financial missions: Show money input and profit/loss buttons
+                    revInput.style.display = 'block';
+                    revInput.placeholder = '$ Amount';
+                    btnPositive.textContent = '💰 NET PROFIT';
+                    btnPositive.style.background = '#00ff41';
+                    btnNegative.textContent = '📉 NET LOSS';
+                    btnNegative.style.background = '#ff4444';
+                } else {
+                    // Other missions: Show generic buttons
+                    revInput.style.display = 'block';
+                    revInput.placeholder = 'Amount';
+                    btnPositive.textContent = 'LOG PROGRESS';
+                    btnNegative.textContent = 'LOG SETBACK';
+                }
+            }
+            
+            // Update pace indicator with mission-specific units
+            const paceIndicator = document.getElementById('paceIndicator');
+            if (paceIndicator) {
+                const deadline = new Date(config.deadline);
+                const daysLeft = Math.ceil((deadline - new Date()) / (1000 * 60 * 60 * 24));
+                const remaining = config.goal - revenue;
+                const dailyTarget = daysLeft > 0 ? (remaining / daysLeft).toFixed(1) : 0;
+                
+                let paceText = '';
+                if (mission.unit === '$') {
+                    paceText = `Need $${parseFloat(dailyTarget).toLocaleString()}/day`;
+                } else if (mission.inputType === 'day') {
+                    paceText = `${remaining}${mission.unit} remaining`;
+                } else {
+                    paceText = `${dailyTarget}${mission.unit}/day needed`;
+                }
+                paceIndicator.textContent = paceText;
+            }
+            
+            // Update boss battles with mission-specific units
+            let bossHTML = '';
+            config.bosses.forEach(boss => {
+                const defeated = revenue >= boss.amt;
+                let bossDisplay = '';
+                if (mission.unit === '$') {
+                    bossDisplay = `$${(boss.amt / 1000).toFixed(0)}k`;
+                } else {
+                    bossDisplay = `${boss.amt}${mission.unit}`;
+                }
+                bossHTML += `<div class="${defeated ? 'boss-battle defeated' : 'boss-battle'}">
+                    <div style="display: flex; justify-content: space-between; margin-bottom: 0.5rem;">
+                        <span style="font-weight: bold;">${defeated ? '✓' : '🔒'} ${boss.name}</span>
+                        <span>${bossDisplay}</span>
+                    </div>
+                    <div style="font-size: 0.75rem; opacity: 0.7;">Reward: ${boss.reward.toLocaleString()} XP</div>
+                </div>`;
+            });
+            document.getElementById('bossList').innerHTML = bossHTML;
+            
+            // Update today's stats
+            const todayKey = 'habits-' + getTodayInTZ();
+            const todayData = get(todayKey) || {};
+            const todayXP = Object.values(todayData).reduce((a, b) => a + b, 0);
+            const todayCount = Object.keys(todayData).length;
+            
+            document.getElementById('missionTodayXP').textContent = todayXP;
+            document.getElementById('missionHabitsCount').textContent = `${todayCount}/${config.habits.length}`;
+            document.getElementById('missionStreak').textContent = `${getStreak()} 🔥`;
+            
+            // Update current weight display
+            updateCurrentWeight();
+        }
+
+        
+        
+        
+        function logPositive() {
+            const config = getConfig();
+            const mission = config.mission;
+            const input = document.getElementById('revInput');
+            
+            if (mission.inputType === 'day') {
+                // Day completed - add 1 day
+                const current = parseFloat(getMissionData('totalRevenue') || '0');
+                setMissionData('totalRevenue', (current + 1).toString());
+                alert(`Day completed! Total: ${current + 1}${mission.unit}`);
+            } else if (mission.inputType === 'weight_loss') {
+                // Weight lost - add to progress
+                const amount = parseFloat(input.value);
+                if (!amount || amount <= 0) {
+                    alert('Enter pounds lost (positive number)');
+                    return;
+                }
+                const current = parseFloat(getMissionData('totalRevenue') || '0');
+                setMissionData('totalRevenue', (current + amount).toString());
+                input.value = '';
+                alert(`Great! ${amount} lbs lost. Total progress: ${(current + amount).toFixed(1)} lbs`);
+            } else {
+                // Financial/other - add to progress
+                const amount = parseFloat(input.value);
+                if (!amount || amount <= 0) {
+                    alert('Enter a positive amount');
+                    return;
+                }
+                const current = parseFloat(getMissionData('totalRevenue') || '0');
+                setMissionData('totalRevenue', (current + amount).toString());
+                input.value = '';
+                alert(`Added ${mission.unit === '$' ? '$' + amount.toLocaleString() : amount + mission.unit}`);
+            }
+            
+            updateHeader();
+            updateMission();
+            updateStats();
+            updateCurrentWeight();
+        }
+
+        function logNegative() {
+            const config = getConfig();
+            const mission = config.mission;
+            const input = document.getElementById('revInput');
+            
+            if (mission.inputType === 'day') {
+                // Day failed - reset to 0
+                const current = parseFloat(localStorage.getItem('totalRevenue') || '0');
+                if (confirm(`Reset progress? You had ${current}${mission.unit}. This will reset to 0.`)) {
+                    setMissionData('totalRevenue', '0');
+                    alert('Progress reset. Start again tomorrow!');
+                }
+            } else if (mission.inputType === 'weight_loss') {
+                // Weight gained - subtract from progress
+                const amount = parseFloat(input.value);
+                if (!amount || amount <= 0) {
+                    alert('Enter pounds gained (positive number)');
+                    return;
+                }
+                const current = parseFloat(getMissionData('totalRevenue') || '0');
+                const newTotal = Math.max(0, current - amount);
+                setMissionData('totalRevenue', newTotal.toString());
+                input.value = '';
+                alert(`${amount} lbs gained. Progress adjusted to: ${newTotal.toFixed(1)} lbs`);
+            } else {
+                // Financial/other - subtract from progress
+                const amount = parseFloat(input.value);
+                if (!amount || amount <= 0) {
+                    alert('Enter loss amount (positive number)');
+                    return;
+                }
+                const current = parseFloat(getMissionData('totalRevenue') || '0');
+                const newTotal = Math.max(0, current - amount);
+                setMissionData('totalRevenue', newTotal.toString());
+                input.value = '';
+                alert(`Loss recorded. New total: ${mission.unit === '$' ? '$' + newTotal.toLocaleString() : newTotal + mission.unit}`);
+            }
+            
+            updateHeader();
+            updateMission();
+            updateStats();
+            updateCurrentWeight();
+        }
+
+        function logProgress() {
+            const config = getConfig();
+            const mission = config.mission;
+            const input = document.getElementById('revInput');
+            
+            if (mission.inputType === 'day') {
+                // Day-based missions (Lust, Sobriety, Faithfulness)
+                const current = parseFloat(getMissionData('totalRevenue') || '0');
+                setMissionData('totalRevenue', (current + 1).toString());
+                alert(`Day complete! ${current + 1}${mission.unit} total.`);
+            } else if (mission.inputType === 'weight_loss') {
+                // Weight loss tracking
+                const weight = parseFloat(input.value);
+                if (!weight || weight <= 0) {
+                    alert('Please enter your current weight in pounds.');
+                    return;
+                }
+                
+                const startWeight = parseFloat(localStorage.getItem('startWeight') || weight);
+                if (!localStorage.getItem('startWeight')) {
+                    localStorage.setItem('startWeight', weight.toString());
+                    alert(`Starting weight: ${weight} lbs`);
+                    updateMission();
+                    return;
+                }
+                
+                const lostWeight = startWeight - weight;
+                localStorage.setItem('totalRevenue', Math.max(0, lostWeight).toString());
+                localStorage.setItem('currentWeight', weight.toString());
+                alert(`${Math.max(0, lostWeight).toFixed(1)} lbs lost`);
+                input.value = '';
+            } else {
+                // Amount-based (Financial, Debt)
+                const amount = parseFloat(input.value);
+                if (!amount || amount <= 0) {
+                    alert('Please enter a valid amount.');
+                    return;
+                }
+                
+                const current = parseFloat(getMissionData('totalRevenue') || '0');
+                setMissionData('totalRevenue', (current + amount).toString());
+                input.value = '';
+            }
+            
+            updateHeader();
+            updateMission();
+            updateStats();
+        }
+
+        function logRevenue() {
+            const amount = parseFloat(document.getElementById('revInput').value);
+            if(amount && amount > 0) {
+                const current = parseFloat(localStorage.getItem('totalRevenue') || '0');
+                const newTotal = current + amount;
+                localStorage.setItem('totalRevenue', newTotal.toString());
+                document.getElementById('revInput').value = '';
+                
+                const config = getConfig();
+                config.bosses.forEach(boss => {
+                    if(current < boss.amt && newTotal >= boss.amt) showMilestone('boss', boss);
+                });
+                
+                updateHeader();
+                updateMission();
+                updateStats();
+            }
+        }
+
+        function renderHabits() {
+            const config = getConfig();
+            const key = 'habits-' + currentDate;
+            const data = get(key) || {};
+            let html = '';
+            
+            config.habits.forEach((habit, index) => {
+                const completed = data[index] !== undefined;
+                html += `<div class="${completed ? 'habit completed' : 'habit'}" onclick="toggleHabit(${index})">
+                    <div style="display: flex; align-items: center; flex: 1;">
+                        <div class="checkbox">${completed ? '✓' : ''}</div>
+                        <div class="habit-content">${habit.n}</div>
+                    </div>
+                    <div class="xp-badge">+${habit.x} XP</div>
+                </div>`;
+            });
+            
+            document.getElementById('habitsContainer').innerHTML = html;
+            
+            const dayXP = Object.values(data).reduce((a, b) => a + b, 0);
+            const maxXP = config.habits.reduce((sum, h) => sum + h.x, 0);
+            const progress = maxXP > 0 ? (dayXP / maxXP * 100).toFixed(0) : 0;
+            
+            document.getElementById('dailyBar').style.width = progress + '%';
+            document.getElementById('dailyText').textContent = `${dayXP} / ${maxXP} XP (${progress}%)`;
+            
+            const d = new Date(currentDate + 'T00:00:00');
+            document.getElementById('currentDate').textContent = d.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric', year: 'numeric' });
+            document.getElementById('nextBtn').disabled = currentDate === getTodayInTZ();
+            
+            // Load journal for this date
+            loadJournal();
+        }
+
+        function toggleHabit(index) {
+            const config = getConfig();
+            const key = 'habits-' + currentDate;
+            const data = get(key) || {};
+            
+            if(data[index]) delete data[index];
+            else data[index] = config.habits[index].x;
+            
+            set(key, data);
+            renderHabits();
+            updateHeader();
+            updateMission();
+            updateStats();
+        }
+
+        function changeDate(days) {
+            const d = new Date(currentDate);
+            d.setDate(d.getDate() + days);
+            currentDate = d.toISOString().split('T')[0];
+            renderHabits();
+        }
+
+        function renderQuests() {
+            const config = getConfig();
+            const data = get('quests_completed') || {};
+            let html = '';
+            
+            config.quests.forEach((quest, index) => {
+                const completed = data[index] !== undefined;
+                html += `<div class="${completed ? 'habit completed' : 'habit'}" onclick="toggleQuest(${index})">
+                    <div style="display: flex; align-items: center; flex: 1;">
+                        <div class="checkbox">${completed ? '✓' : ''}</div>
+                        <div class="habit-content">${quest.n}</div>
+                    </div>
+                    <div class="xp-badge">+${quest.x} XP</div>
+                </div>`;
+            });
+            
+            document.getElementById('questsList').innerHTML = html;
+        }
+
+        function toggleQuest(index) {
+            const config = getConfig();
+            const data = get('quests_completed') || {};
+            
+            if(data[index]) delete data[index];
+            else data[index] = config.quests[index].x;
+            
+            set('quests_completed', data);
+            renderQuests();
+            updateHeader();
+            updateStats();
+        }
+
+        function resetQuests() {
+            if(confirm('Reset all completed quests?')) {
+                set('quests_completed', {});
+                renderQuests();
+                updateHeader();
+                updateStats();
+            }
+        }
+
+        function resetQuests2() {
+            if(confirm('Reset quests to default list?')) {
+                set('quests', DEFAULT_QUESTS);
+                set('quests_completed', {});
+                renderQuests();
+                alert('Quests reset to default!');
+            }
+        }
+
+        // ── TIMEZONE ──────────────────────────────────────────────
+        function getTodayInTZ() {
+            const tz = localStorage.getItem('timezone') || Intl.DateTimeFormat().resolvedOptions().timeZone;
+            return new Date().toLocaleDateString('en-CA', {timeZone: tz}); // returns YYYY-MM-DD
+        }
+
+        function saveTimezone() {
+            const tz = document.getElementById('timezoneSelect').value;
+            localStorage.setItem('timezone', tz);
+            updateTZClock();
+            // refresh date-sensitive views
+            currentDate = getTodayInTZ();
+            updateHeader();
+            updateMission();
+        }
+
+        function updateTZClock() {
+            const tz = localStorage.getItem('timezone') || Intl.DateTimeFormat().resolvedOptions().timeZone;
+            const el = document.getElementById('tzCurrentTime');
+            if(el) {
+                const now = new Date().toLocaleString('en-US', {timeZone: tz, weekday:'short', month:'short', day:'numeric', hour:'2-digit', minute:'2-digit'});
+                el.textContent = `Current time in your zone: ${now}`;
+            }
+        }
+
+        function loadTimezone() {
+            const saved = localStorage.getItem('timezone') || Intl.DateTimeFormat().resolvedOptions().timeZone;
+            const sel = document.getElementById('timezoneSelect');
+            if(sel) {
+                // try exact match first, fallback to first option
+                const opt = Array.from(sel.options).find(o => o.value === saved);
+                if(opt) sel.value = saved;
+            }
+            updateTZClock();
+        }
+
+        // ── STATS FILTERS ─────────────────────────────────────────
+        let activeFilterDays = 7;
+        let customFromDate = null;
+        let customToDate = null;
+
+        function setFilter(days) {
+            activeFilterDays = days;
+            customFromDate = null;
+            customToDate = null;
+            document.getElementById('customRangePanel').style.display = 'none';
+            // highlight active button
+            ['filter7','filter14','filter30','filterCustom'].forEach(id => {
+                const el = document.getElementById(id);
+                if(el) { el.classList.remove('primary'); el.style.background = 'rgba(0,255,65,0.1)'; el.style.color = '#00ff41'; }
+            });
+            const map = {7:'filter7', 14:'filter14', 30:'filter30'};
+            const activeId = map[days];
+            if(activeId) { const el = document.getElementById(activeId); if(el) { el.classList.add('primary'); el.style.background = '#00ff41'; el.style.color = '#000'; } }
+            const label = days === 7 ? 'last 7 days' : days === 14 ? 'last 14 days' : 'last 30 days';
+            document.getElementById('activityLabel').textContent = `Showing ${label}`;
+            renderActivity();
+        }
+
+        function toggleCustomRange() {
+            const panel = document.getElementById('customRangePanel');
+            panel.style.display = panel.style.display === 'none' ? 'block' : 'none';
+            // Set sensible defaults
+            const today = getTodayInTZ();
+            const prior = new Date(); prior.setDate(prior.getDate() - 7);
+            if(!document.getElementById('dateFrom').value) document.getElementById('dateFrom').value = prior.toISOString().split('T')[0];
+            if(!document.getElementById('dateTo').value) document.getElementById('dateTo').value = today;
+        }
+
+        function applyCustomRange() {
+            const from = document.getElementById('dateFrom').value;
+            const to = document.getElementById('dateTo').value;
+            if(!from || !to) { alert('Please select both dates'); return; }
+            if(from > to) { alert('Start date must be before end date'); return; }
+            customFromDate = from;
+            customToDate = to;
+            ['filter7','filter14','filter30','filterCustom'].forEach(id => {
+                const el = document.getElementById(id);
+                if(el) { el.classList.remove('primary'); el.style.background = 'rgba(0,255,65,0.1)'; el.style.color = '#00ff41'; }
+            });
+            const el = document.getElementById('filterCustom');
+            if(el) { el.style.background = '#00ff41'; el.style.color = '#000'; }
+            document.getElementById('activityLabel').textContent = `Showing ${from} → ${to}`;
+            document.getElementById('customRangePanel').style.display = 'none';
+            renderActivity();
+        }
+
+        function getDateRange() {
+            if(customFromDate && customToDate) {
+                const dates = [];
+                let cur = new Date(customFromDate + 'T00:00:00');
+                const end = new Date(customToDate + 'T00:00:00');
+                while(cur <= end) {
+                    dates.push(cur.toISOString().split('T')[0]);
+                    cur.setDate(cur.getDate() + 1);
+                }
+                return dates.reverse(); // newest first
+            }
+            // default: N days back
+            const dates = [];
+            for(let i = 0; i < activeFilterDays; i++) {
+                const d = new Date();
+                d.setDate(d.getDate() - i);
+                dates.push(d.toISOString().split('T')[0]);
+            }
+            return dates;
+        }
+
+        function renderActivity() {
+            const dates = getDateRange();
+            const config = getConfig();
+            const maxXP = config.habits.reduce((s, h) => s + h.x, 0);
+            let html = '';
+            let totalXPRange = 0, totalDaysHit = 0;
+
+            dates.forEach(dateStr => {
+                const data = get('habits-' + dateStr) || {};
+                const dayXP = Object.values(data).reduce((a, b) => a + b, 0);
+                const dayCount = Object.keys(data).length;
+                const pct = maxXP > 0 ? Math.round(dayXP / maxXP * 100) : 0;
+                const hit = dayXP >= maxXP * 0.8;
+                const d = new Date(dateStr + 'T00:00:00');
+                const label = d.toLocaleDateString('en-US', {weekday:'short', month:'short', day:'numeric'});
+                const color = hit ? '#00ff41' : dayXP > 0 ? '#ffcc00' : '#555';
+                totalXPRange += dayXP;
+                if(hit) totalDaysHit++;
+                html += `<div class="stat" style="border-left: 3px solid ${color}; padding-left: 0.75rem;">
+                    <span style="font-size: 0.85rem;">${label}</span>
+                    <span style="font-size: 0.85rem;">${dayCount} habits · ${dayXP} XP · ${pct}%</span>
+                </div>`;
+            });
+
+            if(html === '') html = '<div class="stat" style="opacity:0.5;">No data for this range</div>';
+
+            // summary bar above list
+            const summaryHTML = `<div style="display:flex; justify-content:space-between; padding:0.5rem 0; margin-bottom:0.5rem; border-bottom:1px solid #333; font-size:0.8rem;">
+                <span>🔥 ${totalDaysHit}/${dates.length} days hit (80%+)</span>
+                <span>⚡ ${totalXPRange.toLocaleString()} total XP</span>
+            </div>`;
+
+            document.getElementById('recentActivity').innerHTML = summaryHTML + html;
+        }
+
+        // ── EXPORT DAILY LOGS ─────────────────────────────────────
+        function exportDailyLogs() {
+            const days = parseInt(document.getElementById('exportRange').value);
+            const config = getConfig();
+            const maxXP = config.habits.reduce((s, h) => s + h.x, 0);
+
+            let csv = 'Date,Day,Habits Completed,Total Habits,XP Earned,Max XP,Completion %,Hit 80% Goal\n';
+
+            for(let i = days - 1; i >= 0; i--) {
+                const d = new Date();
+                d.setDate(d.getDate() - i);
+                const dateStr = d.toISOString().split('T')[0];
+                const dayName = d.toLocaleDateString('en-US', {weekday: 'long'});
+                const data = get('habits-' + dateStr) || {};
+                const dayXP = Object.values(data).reduce((a, b) => a + b, 0);
+                const dayCount = Object.keys(data).length;
+                const pct = maxXP > 0 ? (dayXP / maxXP * 100).toFixed(1) : '0.0';
+                const hit = dayXP >= maxXP * 0.8 ? 'YES' : 'NO';
+                csv += `${dateStr},${dayName},${dayCount},${config.habits.length},${dayXP},${maxXP},${pct}%,${hit}\n`;
+            }
+
+            // Append summary
+            csv += '\nSUMMARY\n';
+            csv += `Player Name,${config.name}\n`;
+            csv += `Total XP (All Time),${getTotalXP()}\n`;
+            csv += `Current Streak,${getStreak()} days\n`;
+            csv += `Total Revenue,$${parseFloat(localStorage.getItem('totalRevenue')||'0').toLocaleString()}\n`;
+            csv += `Export Date,${new Date().toLocaleDateString()}\n`;
+
+            const blob = new Blob([csv], {type: 'text/csv'});
+            const a = document.createElement('a');
+            a.href = URL.createObjectURL(blob);
+            a.download = `ascension-log-${config.name.toLowerCase()}-${new Date().toISOString().split('T')[0]}.csv`;
+            a.click();
+        }
+
+        // ── UPDATED updateStats ───────────────────────────────────
+        function updateStats() {
+            const config = getConfig();
+            const totalXP = getTotalXP();
+            const {level} = getLevel(totalXP);
+            const streak = getStreak();
+            const revenue = parseFloat(getMissionData('totalRevenue') || '0');
+            
+            let totalHabitsCompleted = 0;
+            for(let i = 0; i < 365; i++) {
+                const d = new Date();
+                d.setDate(d.getDate() - i);
+                const key = 'habits-' + d.toISOString().split('T')[0];
+                const data = get(key) || {};
+                totalHabitsCompleted += Object.keys(data).length;
+            }
+            
+            const questsData = get('quests_completed') || {};
+            const questsCompleted = Object.keys(questsData).length;
+            const bossesDefeated = config.bosses.filter(b => revenue >= b.amt).length;
+            
+            document.getElementById('statsTotalXP').textContent = totalXP.toLocaleString();
+            document.getElementById('statsLevel').textContent = level;
+            document.getElementById('statsStreak').textContent = streak;
+            document.getElementById('statsRevenue').textContent = '$' + revenue.toLocaleString();
+            document.getElementById('statsHabitsTotal').textContent = totalHabitsCompleted;
+            document.getElementById('statsQuestsTotal').textContent = `${questsCompleted}/${config.quests.length}`;
+            document.getElementById('statsBossesTotal').textContent = `${bossesDefeated}/${config.bosses.length}`;
+
+            // render activity with current filter
+            renderActivity();
+            // highlight default filter button on first load
+            setFilter(activeFilterDays);
+        }
+
+        function switchView(viewName) {
+            document.querySelectorAll('.view').forEach(v => v.classList.remove('active'));
+            document.querySelectorAll('.nav-tab').forEach(t => t.classList.remove('active'));
+            document.getElementById(viewName + 'View').classList.add('active');
+            event.target.classList.add('active');
+            
+            if(viewName === 'mission') updateMission();
+            if(viewName === 'daily') renderHabits();
+            if(viewName === 'quests') renderQuests();
+            if(viewName === 'stats') updateStats();
+            if(viewName === 'settings') loadSettings();
+        }
+
+        function loadSettings() {
+            const config = getConfig();
+            document.getElementById('nameInput').value = config.name;
+            document.getElementById('goalInput').value = config.goal;
+            document.getElementById('deadlineInput').value = config.deadline;
+            
+            document.querySelectorAll('.difficulty-btn').forEach(btn => {
+                btn.classList.remove('active');
+                if(btn.getAttribute('data-diff') === config.diff) btn.classList.add('active');
+            });
+            
+            let charHTML = '';
+            CHARACTERS.forEach(char => {
+                charHTML += `<div class="character-option ${char === config.char ? 'active' : ''}" onclick="selectCharacter('${char}')">${char}</div>`;
+            });
+            document.getElementById('charGrid').innerHTML = charHTML;
+            loadTimezone();
+
+            const missionType = get('missionType') || 'financial';
+            const missionSelect = document.getElementById('missionTypeSelect');
+            if (missionSelect) missionSelect.value = missionType;
+            updateMissionUI();
+            const savedStartWeight = get('startingWeight');
+            const startWeightInput = document.getElementById('startingWeightInput');
+            if (savedStartWeight && startWeightInput) {
+                startWeightInput.value = savedStartWeight;
+            }        }
+
+        function saveName() {
+            const name = document.getElementById('nameInput').value.trim();
+            if(name) {
+                set('name', name);
+                updateHeader();
+                alert('Name saved!');
+            }
+        }
+
+        function selectCharacter(char) {
+            set('char', char);
+            document.querySelectorAll('.character-option').forEach(el => el.classList.remove('active'));
+            event.target.classList.add('active');
+            updateHeader();
+        }
+
+        function setDifficulty(diff) {
+            set('diff', diff);
+            document.querySelectorAll('.difficulty-btn').forEach(btn => btn.classList.remove('active'));
+            event.target.classList.add('active');
+            updateHeader();
+            alert('Difficulty set!');
+        }
+
+        
+        function updateMissionUI() {
+            try {
+                const select = document.getElementById('missionTypeSelect');
+                const label = document.getElementById('goalLabel');
+                const input = document.getElementById('goalInput');
+                const startWeightLabel = document.getElementById('startingWeightLabel');
+                
+                if (!select || !label || !input) return;
+                
+                const type = select.value;
+                
+                if (startWeightLabel) {
+                    startWeightLabel.style.display = (type === 'weight_loss') ? 'block' : 'none';
+                }
+                
+                if (type === 'financial' || type === 'debt' || type === 'savings') {
+                    label.textContent = 'Target Amount ($):';
+                    input.placeholder = '1000000';
+                } else if (type === 'lust' || type === 'sobriety' || type === 'faithfulness') {
+                    label.textContent = 'Target (days):';
+                    input.placeholder = '365';
+                } else if (type === 'weight_loss') {
+                    label.textContent = 'Target (pounds to lose):';
+                    input.placeholder = '50';
+                }
+            } catch(e) {
+                console.error('updateMissionUI error:', e);
+            }
+        }
+
+        function saveGoal() {
+            const goal = parseFloat(document.getElementById('goalInput').value);
+            const deadline = document.getElementById('deadlineInput').value;
+            const missionTypeSelect = document.getElementById('missionTypeSelect');
+            
+            if (!goal || !deadline || !missionTypeSelect) {
+                alert('Please fill in all fields');
+                return;
+            }
+            
+            const newMissionType = missionTypeSelect.value;
+            const currentMissionType = get('missionType') || 'financial';
+            
+            // Check if mission type is changing
+            if (newMissionType !== currentMissionType) {
+                const currentProgress = getMissionData('totalRevenue') || 0;
+                const currentMission = MISSION_TEMPLATES[currentMissionType];
+                const newMission = MISSION_TEMPLATES[newMissionType];
+                
+                let progressDisplay = '';
+                if (currentMission.unit === '$') {
+                    progressDisplay = `$${parseFloat(currentProgress).toLocaleString()}`;
+                } else {
+                    progressDisplay = `${currentProgress}${currentMission.unit}`;
+                }
+                
+                const confirmMsg = `Switching from ${currentMission.name} to ${newMission.name}
+
+Your ${currentMission.name} progress (${progressDisplay}) will be saved automatically.
+
+You can switch back anytime in Settings to continue where you left off.
+
+Switch missions?`;
+                
+                if (!confirm(confirmMsg)) {
+                    return; // User cancelled
+                }
+            }
+            
+            // Save the mission type
+            set('goal', goal);
+            set('deadline', deadline);
+            set('missionType', newMissionType);
+            
+            // Save starting weight if this is weight loss mission
+            const startingWeightInput = document.getElementById('startingWeightInput');
+            if (startingWeightInput && startingWeightInput.value) {
+                setMissionData('startingWeight', parseFloat(startingWeightInput.value));
+            }
+            
+            // Set bosses for the new mission
+            const mission = MISSION_TEMPLATES[newMissionType];
+            if (mission) set('bosses', mission.bosses);
+            
+            updateHeader();
+            updateMission();
+            alert('Mission saved!');
+        }
+
+        
+
+        function showXPGuide() {
+            document.getElementById('xpGuideModal').classList.add('active');
+            document.getElementById('overlay').classList.add('active');
+        }
+
+        // ── MIRROR PROTOCOL LOGIC ────────────────────────────────
+        function checkMirrorProtocol() {
+            const completed = localStorage.getItem('mirror_completed');
+            if(completed === 'true') return true;
+            
+            // Show mirror modal
+            document.getElementById('mirrorModal').classList.add('active');
+            document.getElementById('mirrorDate').textContent = new Date().toLocaleDateString('en-US', {month: 'long', day: 'numeric', year: 'numeric'});
+            return false;
+        }
+
+        function validateMirrorAnswers() {
+            const answers = [];
+            for(let i = 1; i <= 5; i++) {
+                const answer = document.getElementById('mirror' + i).value.trim();
+                if(answer.length < 20) {
+                    alert(`Question ${i} requires a more thoughtful answer (at least 20 characters). Be honest with yourself.`);
+                    return;
+                }
+                answers.push(answer);
+            }
+            
+            // Save answers temporarily
+            localStorage.setItem('mirror_answers', JSON.stringify(answers));
+            
+            // Show covenant section
+            document.getElementById('mirrorCovenant').classList.add('active');
+            document.getElementById('mirrorCovenant').scrollIntoView({behavior: 'smooth', block: 'nearest'});
+        }
+
+        function completeMirrorProtocol() {
+            const signature = document.getElementById('mirrorSignature').value.trim();
+            if(signature.length < 3) {
+                alert('Please sign your full name to complete the covenant.');
+                return;
+            }
+            
+            const answers = JSON.parse(localStorage.getItem('mirror_answers') || '[]');
+            const mirrorData = {
+                completed: true,
+                date: new Date().toISOString(),
+                signature: signature,
+                answers: answers
+            };
+            
+            localStorage.setItem('mirror_protocol', JSON.stringify(mirrorData));
+            localStorage.setItem('mirror_completed', 'true');
+            
+            alert(`✅ Mirror Protocol Complete.
+
+You've done the hard part. Most people skip the mirror and chase goals they don't understand.
+
+You didn't. You looked at the truth.
+
+Now go build. But remember what you wrote here. This is your why.`);
+            
+            document.getElementById('mirrorModal').classList.remove('active');
+        }
+
+        function downloadMirrorReflection() {
+            const data = JSON.parse(localStorage.getItem('mirror_protocol') || '{}');
+            if(!data.answers) {
+                alert('Please complete all questions and sign first.');
+                return;
+            }
+            
+            const questions = [
+                'What are you running from?',
+                'What are you using to numb yourself?',
+                'Why do you really want this?',
+                'What has to die for you to become this person?',
+                'Can you surrender the outcome to God?'
+            ];
+            
+            let content = 'PROTOCOL SEVEN: THE MIRROR PROTOCOL\n';
+            content += '═══════════════════════════════════════\n\n';
+            
+            questions.forEach((q, i) => {
+                content += `${i + 1}. ${q}\n\n`;
+                content += `${data.answers[i]}\n\n`;
+                content += '───────────────────────────────────────\n\n';
+            });
+            
+            content += '\nYOUR COVENANT\n\n';
+            content += 'By signing below, I make a covenant with myself and God:\n\n';
+            content += 'To pursue truth, not comfort.\n';
+            content += 'To do the work, not make excuses.\n';
+            content += 'To show up, even when I fall.\n\n';
+            content += 'This is my documented commitment.\n';
+            content += 'If I fall off, this remains.\n';
+            content += 'No excuses. Only accountability.\n\n';
+            content += `Signed: ${data.signature}\n`;
+            content += `Date: ${new Date(data.date).toLocaleDateString('en-US', {month: 'long', day: 'numeric', year: 'numeric'})}\n\n`;
+            content += '═══════════════════════════════════════\n';
+            content += '© Protocol Seven\n';
+            
+            const blob = new Blob([content], {type: 'text/plain'});
+            const a = document.createElement('a');
+            a.href = URL.createObjectURL(blob);
+            a.download = `mirror-protocol-${data.signature.toLowerCase().replace(/\s+/g, '-')}-${new Date().toISOString().split('T')[0]}.txt`;
+            a.click();
+        }
+
+        function reviewMirrorProtocol() {
+            const data = JSON.parse(localStorage.getItem('mirror_protocol') || '{}');
+            if(!data.completed) {
+                alert('You have not completed The Mirror Protocol yet.\n\nComplete it by trying to edit your habits, quests, or bosses.');
+                return;
+            }
+            
+            const questions = [
+                'What are you running from?',
+                'What are you using to numb yourself?',
+                'Why do you really want this?',
+                'What has to die for you to become this person?',
+                'Can you surrender the outcome to God?'
+            ];
+            
+            let message = '═══ THE MIRROR PROTOCOL ═══\n\n';
+            questions.forEach((q, i) => {
+                message += `${i + 1}. ${q}\n${data.answers[i]}\n\n`;
+            });
+            message += `COVENANT SIGNED: ${data.signature}\n`;
+            message += `DATE: ${new Date(data.date).toLocaleDateString()}\n\n`;
+            message += 'Download your full reflection from this button in Settings.';
+            
+            alert(message);
+        }
+
+        // ── DAILY JOURNAL LOGIC ───────────────────────────────────
+        let journalSaveTimeout;
+        
+        function saveJournal() {
+            const text = document.getElementById('dailyJournal').value;
+            const key = 'journal-' + currentDate;
+            localStorage.setItem(key, text);
+            
+            const status = document.getElementById('journalStatus');
+            if(status) {
+                status.textContent = 'Saved ✓';
+                setTimeout(() => status.textContent = 'Auto-saved', 2000);
+            }
+        }
+
+        function loadJournal() {
+            const key = 'journal-' + currentDate;
+            const saved = localStorage.getItem(key) || '';
+            const textarea = document.getElementById('dailyJournal');
+            if(textarea) {
+                textarea.value = saved;
+                // Add auto-save listener
+                textarea.removeEventListener('input', journalInputHandler);
+                textarea.addEventListener('input', journalInputHandler);
+            }
+        }
+
+        function journalInputHandler() {
+            clearTimeout(journalSaveTimeout);
+            const status = document.getElementById('journalStatus');
+            if(status) status.textContent = 'Saving...';
+            journalSaveTimeout = setTimeout(saveJournal, 1000);
+        }
+
+        function exportJournalHistory() {
+            const config = getConfig();
+            let content = `PROTOCOL SEVEN: DAILY JOURNAL\n`;
+            content += `Player: ${config.name}\n`;
+            content += `═══════════════════════════════════════\n\n`;
+            
+            let entries = [];
+            for(let i = 0; i < 365; i++) {
+                const d = new Date();
+                d.setDate(d.getDate() - i);
+                const dateStr = d.toISOString().split('T')[0];
+                const key = 'journal-' + dateStr;
+                const entry = localStorage.getItem(key);
+                if(entry && entry.trim()) {
+                    entries.push({date: dateStr, entry: entry});
+                }
+            }
+            
+            entries.reverse(); // Chronological order
+            
+            if(entries.length === 0) {
+                alert('No journal entries found.');
+                return;
+            }
+            
+            entries.forEach(({date, entry}) => {
+                const d = new Date(date + 'T00:00:00');
+                const label = d.toLocaleDateString('en-US', {weekday: 'long', month: 'long', day: 'numeric', year: 'numeric'});
+                content += `${label}\n`;
+                content += `${entry}\n`;
+                content += '───────────────────────────────────────\n\n';
+            });
+            
+            const blob = new Blob([content], {type: 'text/plain'});
+            const a = document.createElement('a');
+            a.href = URL.createObjectURL(blob);
+            a.download = `journal-${config.name.toLowerCase()}-${new Date().toISOString().split('T')[0]}.txt`;
+            a.click();
+        }
+
+        function editHabits() {
+            if(!checkMirrorProtocol()) return;
+            const config = getConfig();
+            document.getElementById('habitsText').value = config.habits.map(h => `${h.n},${h.x}`).join('\n');
+            document.getElementById('habitsModal').classList.add('active');
+            document.getElementById('overlay').classList.add('active');
+        }
+
+        function saveHabits() {
+            const text = document.getElementById('habitsText').value;
+            const habits = text.split('\n').filter(l => l.trim()).map(line => {
+                const [name, xp] = line.split(',');
+                return {n: name.trim(), x: parseInt(xp) || 50};
+            });
+            if(habits.length > 0) {
+                set('habits', habits);
+                closeModals();
+                renderHabits();
+                updateMission();
+                alert(`${habits.length} habits saved!`);
+            } else {
+                alert('Please add at least one habit');
+            }
+        }
+
+        function resetHabits() {
+            if(confirm('Reset to default habits?')) {
+                set('habits', DEFAULT_HABITS);
+                renderHabits();
+                updateMission();
+                alert('Habits reset!');
+            }
+        }
+
+        function editQuests() {
+            if(!checkMirrorProtocol()) return;
+            const config = getConfig();
+            document.getElementById('questsText').value = config.quests.map(q => `${q.n},${q.x}`).join('\n');
+            document.getElementById('questsModal').classList.add('active');
+            document.getElementById('overlay').classList.add('active');
+        }
+
+        function saveQuests() {
+            const text = document.getElementById('questsText').value;
+            const quests = text.split('\n').filter(l => l.trim()).map(line => {
+                const [name, xp] = line.split(',');
+                return {n: name.trim(), x: parseInt(xp) || 300};
+            });
+            if(quests.length > 0) {
+                set('quests', quests);
+                closeModals();
+                renderQuests();
+                alert(`${quests.length} quests saved!`);
+            } else {
+                alert('Please add at least one quest');
+            }
+        }
+
+        function editBosses() {
+            if(!checkMirrorProtocol()) return;
+            const config = getConfig();
+            document.getElementById('bossesText').value = config.bosses.map(b => `${b.amt},${b.name},${b.reward}`).join('\n');
+            document.getElementById('bossesModal').classList.add('active');
+            document.getElementById('overlay').classList.add('active');
+        }
+
+        function saveBosses() {
+            const text = document.getElementById('bossesText').value;
+            const bosses = text.split('\n').filter(l => l.trim()).map(line => {
+                const [amt, name, reward] = line.split(',');
+                return { amt: parseInt(amt) || 100000, name: name.trim(), reward: parseInt(reward) || 5000 };
+            });
+            if(bosses.length > 0) {
+                set('bosses', bosses);
+                closeModals();
+                updateMission();
+                alert(`${bosses.length} bosses saved!`);
+            }
+        }
+
+        function resetBosses() {
+            if(confirm('Reset to default boss battles?')) {
+                set('bosses', DEFAULT_BOSSES);
+                updateMission();
+                alert('Bosses reset!');
+            }
+        }
+
+        function showCharProfile() {
+            const config = getConfig();
+            const totalXP = getTotalXP();
+            const {level} = getLevel(totalXP);
+            const revenue = parseFloat(getMissionData('totalRevenue') || '0');
+            
+            document.getElementById('charDisplay').textContent = config.char;
+            document.getElementById('charName').textContent = config.name;
+            document.getElementById('charLevel').textContent = level;
+            document.getElementById('charXP').textContent = totalXP.toLocaleString();
+            document.getElementById('charStreak').textContent = getStreak() + ' days';
+            document.getElementById('charRevenue').textContent = '$' + revenue.toLocaleString();
+            
+            document.getElementById('charModal').classList.add('active');
+            document.getElementById('overlay').classList.add('active');
+        }
+
+        function closeModals() {
+            document.querySelectorAll('.modal').forEach(m => m.classList.remove('active'));
+            document.getElementById('overlay').classList.remove('active');
+        }
+
+        
+
+        
+        function downloadStarterPack() {
+            const instructions = `# ASCENSION ENGINE GAME
+
+## QUICK START
+1. Go to SETTINGS and customize everything
+2. Set your name, goal, and deadline  
+3. Edit your habits, quests, and boss battles (add as many as you want!)
+4. Go to DAILY and start tracking!
+
+## DEVELOPER NOTE
+Your better life starts with erasing your current program and reinstalling new software with God's saved game that He gave to you. There is no end game here, but there is eternity with Him. Through this game, as you track your habits, you'll start to serve in ways you haven't and realign back to God.
+
+— Cedric Lee`;
+
+            const template = {name: "YOUR_NAME", character: "👤", difficulty: "medium", goal: 100000, deadline: "2026-12-31", habits: [{n: "Habit 1", x: 50}, {n: "Habit 2", x: 60}], quests: [{n: "Quest 1", x: 500}], bosses: [{amt: 50000, name: "Boss 1", reward: 5000}]};
+
+            setTimeout(() => {
+                const blob1 = new Blob([instructions], {type: 'text/plain'});
+                const a1 = document.createElement('a');
+                a1.href = URL.createObjectURL(blob1);
+                a1.download = 'INSTRUCTIONS.txt';
+                a1.click();
+            }, 100);
+
+            setTimeout(() => {
+                const blob2 = new Blob([JSON.stringify(template, null, 2)], {type: 'application/json'});
+                const a2 = document.createElement('a');
+                a2.href = URL.createObjectURL(blob2);
+                a2.download = 'template.json';
+                a2.click();
+            }, 500);
+
+            alert('Downloading Starter Pack!');
+        }
+
+        function resetAll() {
+            if(confirm('⚠️ DELETE ALL DATA?')) {
+                if(confirm('Are you sure?')) {
+                    localStorage.clear();
+                    location.reload();
+                }
+            }
+        }
+
+        function showMilestone(type, data) {
+            const el = document.getElementById('milestoneNotif');
+            if(type === 'level') {
+                el.innerHTML = `<div class="milestone"><div style="font-size: 3rem; margin-bottom: 1rem;">🎯</div><div style="font-size: 1.5rem; font-weight: bold;">LEVEL ${data}!</div></div>`;
+            } else if(type === 'boss') {
+                el.innerHTML = `<div class="milestone"><div style="font-size: 3rem; margin-bottom: 1rem;">💀</div><div style="font-size: 1.5rem; font-weight: bold;">BOSS DEFEATED!</div><div style="font-size: 1.2rem; color: #00ff41; margin: 0.5rem;">${data.name}</div><div>+${data.reward.toLocaleString()} XP</div></div>`;
+            }
+            el.style.display = 'block';
+            setTimeout(() => el.style.display = 'none', 5000);
+        }
+
+        // ── SPLASH SCREEN LOGIC ───────────────────────────────────
+        function hasSaveData() {
+            // Check for any meaningful saved data
+            return !!(localStorage.getItem('name') || localStorage.getItem('totalRevenue') || localStorage.getItem('deadline') ||
+                Object.keys(localStorage).some(k => k.startsWith('habits-')));
+        }
+
+        function enterGame() {
+            const splash = document.getElementById('splashScreen');
+            splash.classList.add('fade-out');
+            setTimeout(() => { splash.style.display = 'none'; }, 650);
+            updateHeader();
+            updateMission();
+        }
+
+        function startNewGame() {
+            if(hasSaveData()) {
+                if(!confirm('⚠️ This will erase your current save and start fresh.\n\nAre you sure?')) return;
+                localStorage.clear();
+            }
+            enterGame();
+        }
+
+        function continueGame() {
+            enterGame();
+        }
+
+        function exitGame() {
+            if(confirm('Exit to start screen?\n\nYour progress is saved automatically.')) {
+                const splash = document.getElementById('splashScreen');
+                splash.style.display = 'flex';
+                splash.classList.remove('fade-out');
+                updateSplashInfo();
+            }
+        }
+
+        function showCredits() {
+            document.getElementById('creditsModal').classList.add('active');
+        }
+
+        function closeCredits() {
+            document.getElementById('creditsModal').classList.remove('active');
+        }
+
+        function updateSplashInfo() {
+            const continueBtn = document.getElementById('continueBtn');
+            const saveInfo = document.getElementById('splashSaveInfo');
+            if(hasSaveData()) {
+                continueBtn.disabled = false;
+                const savedName = localStorage.getItem('name');
+                const savedDeadline = localStorage.getItem('deadline');
+                const savedRevenue = parseFloat(localStorage.getItem('totalRevenue') || '0');
+                
+                // Get last activity timestamp from habit logs
+                let lastActive = null;
+                for(let i = 0; i < 365; i++) {
+                    const d = new Date();
+                    d.setDate(d.getDate() - i);
+                    const key = 'habits-' + d.toISOString().split('T')[0];
+                    if(localStorage.getItem(key)) {
+                        lastActive = d.toISOString().split('T')[0];
+                        break;
+                    }
+                }
+                
+                let info = savedName ? `Save found: ${savedName}` : 'Save found';
+                if(savedRevenue > 0) info += ` · $${savedRevenue.toLocaleString()} logged`;
+                if(savedDeadline) info += ` · Deadline: ${savedDeadline}`;
+                if(lastActive) {
+                    const lastDate = new Date(lastActive + 'T00:00:00');
+                    const timeStr = lastDate.toLocaleDateString('en-US', {month: 'short', day: 'numeric', year: 'numeric'});
+                    const now = new Date();
+                    const hoursSince = Math.floor((now - lastDate) / (1000 * 60 * 60));
+                    if(hoursSince < 24) {
+                        info += ` · Last played: Today`;
+                    } else if(hoursSince < 48) {
+                        info += ` · Last played: Yesterday`;
+                    } else {
+                        info += ` · Last played: ${timeStr}`;
+                    }
+                }
+                saveInfo.textContent = info;
+            } else {
+                continueBtn.disabled = true;
+                saveInfo.textContent = 'No save data found — start your journey!';
+            }
+        }
+
+        // ── SAVE PROGRESS (full snapshot) ────────────────────────
+        
+        function loadFullSave(data) {
+            set('name', data.name);
+            set('char', data.character);
+            set('diff', data.difficulty);
+            set('goal', data.goal);
+            set('deadline', data.deadline);
+            set('habits', data.habits);
+            set('quests', data.quests);
+            set('bosses', data.bosses);
+            if(data.timezone) localStorage.setItem('timezone', data.timezone);
+            if(data.totalRevenue) localStorage.setItem('totalRevenue', data.totalRevenue);
+            if(data.quests_completed) set('quests_completed', data.quests_completed);
+            if(data.habit_logs) {
+                Object.entries(data.habit_logs).forEach(([date, log]) => {
+                    set('habits-' + date, log);
+                });
+            }
+        }
+
+        // ── INITIALIZE ────────────────────────────────────────────
+        window.addEventListener('load', () => {
+            updateSplashInfo();
+        });
+    
+        function closeRealGame() {
+            console.log('Closing THE REAL GAME splash...');
+            document.querySelectorAll('.view').forEach(v => v.classList.remove('active'));
+            document.getElementById('missionView').classList.add('active');
+            
+            // Initialize the app
+            if (typeof updateHeader === 'function') updateHeader();
+            if (typeof updateMission === 'function') updateMission();
+            if (typeof updateHabits === 'function') updateHabits();
+            if (typeof updateQuests === 'function') updateQuests();
+            if (typeof updateJournal === 'function') updateJournal();
+            if (typeof updateStats === 'function') updateStats();
+            
+            console.log('✅ Entered app');
+        }
+
+function exportSettings() {
+            console.log('💾 EXPORTING COMPLETE GAME STATE...');
+            
+            // Capture EVERYTHING in localStorage
+            const completeGameState = {};
+            for (let i = 0; i < localStorage.length; i++) {
+                const key = localStorage.key(i);
+                const value = localStorage.getItem(key);
+                completeGameState[key] = value;
+                console.log(`  ✅ Saved: ${key}`);
+            }
+            
+            // Get player info for filename
+            const playerName = get('name') || 'PLAYER';
+            const level = get('level') || '1';
+            const xp = get('xp') || '0';
+            const timestamp = new Date().toISOString().split('T')[0]; // YYYY-MM-DD
+            
+            // Create save file with metadata
+            const saveFile = {
+                version: '1.0',
+                savedAt: new Date().toISOString(),
+                playerName: playerName,
+                level: parseInt(level),
+                xp: parseInt(xp),
+                totalKeys: Object.keys(completeGameState).length,
+                gameState: completeGameState
+            };
+            
+            // Create filename: ascension.game[name-date][lvlX].json
+            const filename = `ascension.game[${playerName}-${timestamp}][lvl${level}].json`;
+            
+            console.log(`📦 Creating save file: ${filename}`);
+            console.log(`📊 Total data keys saved: ${Object.keys(completeGameState).length}`);
+            
+            // Download the file
+            const json = JSON.stringify(saveFile, null, 2);
+            const blob = new Blob([json], { type: 'application/json' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = filename;
+            a.click();
+            URL.revokeObjectURL(url);
+            
+            alert(`✅ Complete game saved!
+
+File: ${filename}
+Player: ${playerName} (Level ${level})
+Data keys: ${Object.keys(completeGameState).length}
+
+This save contains EVERYTHING:
+• All XP & levels
+• All journal entries
+• All daily logs
+• All mission progress
+• Mirror Protocol
+• Habits & quests
+• Everything!`);
+            
+            console.log('✅ EXPORT COMPLETE!');
+        }
+
+        function importSettings() {
+            console.log('📥 IMPORT GAME INITIATED...');
+            
+            const input = document.createElement('input');
+            input.type = 'file';
+            input.accept = '.json';
+            input.onchange = (e) => {
+                const file = e.target.files[0];
+                console.log(`📂 Loading file: ${file.name}`);
+                
+                const reader = new FileReader();
+                reader.onload = (event) => {
+                    try {
+                        const saveFile = JSON.parse(event.target.result);
+                        console.log('📦 Save file parsed successfully');
+                        
+                        // Validate save file structure
+                        if (!saveFile.gameState) {
+                            alert('❌ Invalid save file format!\n\nThis file is not a valid Protocol Seven save.');
+                            console.error('Missing gameState in save file');
+                            return;
+                        }
+                        
+                        // Show confirmation with save details
+                        const confirmMsg = `🎮 Load this saved game?
+
+📊 SAVE FILE INFO:
+━━━━━━━━━━━━━━━━━━━━━━━━━━━
+Player: ${saveFile.playerName || 'Unknown'}
+Level: ${saveFile.level || '?'}
+XP: ${saveFile.xp || '?'}
+Saved: ${saveFile.savedAt ? new Date(saveFile.savedAt).toLocaleString() : 'Unknown'}
+Data keys: ${saveFile.totalKeys || Object.keys(saveFile.gameState).length}
+
+⚠️ WARNING:
+This will COMPLETELY REPLACE your current game with this save file.
+
+Your current progress will be DELETED.
+
+Continue?`;
+                        
+                        if (!confirm(confirmMsg)) {
+                            console.log('❌ Import cancelled by user');
+                            return;
+                        }
+                        
+                        console.log('🗑️ Clearing current localStorage...');
+                        const oldKeys = localStorage.length;
+                        localStorage.clear();
+                        console.log(`  Cleared ${oldKeys} keys`);
+                        
+                        console.log('📥 Restoring saved game state...');
+                        let restoredCount = 0;
+                        for (const key in saveFile.gameState) {
+                            localStorage.setItem(key, saveFile.gameState[key]);
+                            restoredCount++;
+                            console.log(`  ✅ Restored: ${key}`);
+                        }
+                        
+                        console.log(`✅ Restored ${restoredCount} data keys`);
+                        
+                        alert(`✅ Game loaded successfully!
+
+Player: ${saveFile.playerName}
+Level: ${saveFile.level}
+Data restored: ${restoredCount} keys
+
+Refreshing app...`);
+                        
+                        console.log('🔄 Reloading page...');
+                        setTimeout(() => location.reload(), 500);
+                        
+                    } catch (err) {
+                        alert('❌ Error loading save file!\n\n' + err.message);
+                        console.error('Import error:', err);
+                    }
+                };
+                reader.readAsText(file);
+            };
+            input.click();
+        }
+
+        </script>
+</body>
+</html>
